@@ -1,0 +1,185 @@
+---
+title: "Clustering all cells - RNA only (filtered by soupx)"
+author: "Zhiyuan Hu"
+date: '2022-09-02 (last modified: `r Sys.Date()`)'
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+library(dplyr)
+library(Seurat)
+library(patchwork)
+library(RColorBrewer)
+library(scales)
+stage_cols <- RColorBrewer::brewer.pal("Spectral", n = 11)
+genotype_cols <- RColorBrewer::brewer.pal("Set2", n = 8)[c(1,2,3,8)]
+sample_cols <- RColorBrewer::brewer.pal("Accent", n = 8)
+doublet_cols <- RColorBrewer::brewer.pal("Paired", n = 8)[c(6,8,2)]
+col.ls <- c(ArchR::ArchRPalettes$stallion, ArchR::ArchRPalettes$bear) # archR color palettes
+names(col.ls) <- NULL
+```
+
+# Read data
+
+```{r read data}
+seu <- readRDS("/t1-data/project/tsslab/zhu/multiome/analysis_newref/preprocessing/rds/rna_atac_singlet/seuobj_rna64340.rds")
+dim(seu)
+```
+
+# QC
+
+```{r percent.mt, fig.width=8, fig.height=7}
+DefaultAssay(seu) <- "RNA"
+VlnPlot(
+  object = seu,
+  features = c("nCount_RNA",  "nFeature_RNA", "percent.mt",
+               "nFrags","TSSEnrichment","NucleosomeRatio"),
+  ncol = 3, group.by = "sample",
+  pt.size = 0
+)
+```
+
+```{r}
+table(seu$sample)
+```
+
+
+```{r FeatureScatter-qc,fig.width=7, fig.height=3}
+plot1 <- FeatureScatter(seu, feature1 = "nCount_RNA", feature2 = "percent.mt", group.by = "sample", pt.size = 0.1)
+plot2 <- FeatureScatter(seu, feature1 = "nCount_RNA", feature2 = "nFeature_RNA",group.by = "sample", pt.size = 0.1)
+plot1 + plot2
+```
+
+
+# Seurat pipeline of singlet GEX data - without doublets
+
+```{r, fig.width=12, fig.height=5}
+DefaultAssay(seu) <- "RNA"
+seu <- NormalizeData(seu, normalization.method = "LogNormalize", scale.factor = 10000)
+seu <- FindVariableFeatures(seu, selection.method = "vst", nfeatures = 2000)
+
+# Identify the 10 most highly variable genes
+top10 <- head(VariableFeatures(seu), 10)
+
+# plot variable features with and without labels
+plot1 <- VariableFeaturePlot(seu)
+plot2 <- LabelPoints(plot = plot1, points = top10, repel = TRUE)
+plot1 + plot2
+```
+
+```{r}
+all.genes <- rownames(seu)
+seu <- ScaleData(seu, features = all.genes)
+seu <- RunPCA(seu, features = VariableFeatures(object = seu))
+# Examine and visualize PCA results a few different ways
+print(seu[["pca"]], dims = 1:5, nfeatures = 5)
+```
+
+```{r}
+DimPlot(seu, reduction = "pca", group.by = "sample")
+```
+
+```{r}
+ElbowPlot(seu, ndims = 50)
+```
+
+```{r}
+seu <- FindNeighbors(seu, dims = 1:25)
+seu <- FindClusters(seu, resolution = 0.6)
+# If you haven't installed UMAP, you can do so via reticulate::py_install(packages =
+# 'umap-learn')
+seu <- RunUMAP(seu, dims = 1:25)
+# saveRDS(seu, file = "../rds/seu_8batches_RNAonly_soupxFiltered_DoubletFinderFiltered_clustered_subsetArchR.rds")
+```
+
+## Clustering results
+
+```{r, fig.height=6, fig.width=20}
+seu$stage <- factor(seu$stage, levels = c("epiboly-4ss","6-10ss","12-16ss","18-22ss"))
+p1 <- DimPlot(seu, label = TRUE, reduction = "umap",cols = alpha(col.ls, 0.3))
+p2 <- DimPlot(seu, reduction = "umap", group.by = "genotype",cols = alpha(genotype_cols, 0.4), pt.size = 0.5)
+p3 <- DimPlot(seu, reduction = "umap", group.by = "stage", cols = alpha(stage_cols[c(4,6,8,10)], 0.4), pt.size = 0.5)
+p1 + p2 + p3
+```
+
+```{r, fig.height=6, fig.width=20}
+DimPlot(seu, reduction = "umap", group.by = "genotype", cols = alpha(sample_cols, 0.4), pt.size = 0.1, split.by = "stage")
+```
+
+```{r, fig.height=6, fig.width=15}
+DimPlot(seu, reduction = "umap", group.by = "stage", cols = alpha(stage_cols[c(4,6,8,10)], 0.4), pt.size = 0.1, split.by = "genotype")
+```
+
+```{r, fig.height=5, fig.width=6}
+p1 <- DimPlot(seu, reduction = "umap", group.by = "sample", cols = alpha(sample_cols, 0.4), pt.size = 0.1)
+p1
+```
+
+## Expression of known marker genes
+
+```{r, fig.height=5, fig.width=21}
+FeaturePlot(seu, features = c("foxd3", "foxd3-mCherry","foxd3-citrine","alg6"), pt.size = 0.1, ncol = 4)
+```
+
+
+```{r expression-known-markers2, fig.width=25, fig.height=8}
+known_markers <- c("foxd3", "sox10","pax3a","tfap2a",
+                   "sox3","sox19b",
+                   "mafba","egr2b","hoxb3a",
+                   "tbxta","sox2","msgn1")
+FeaturePlot(seu, features = c(known_markers), ncol = 6)
+```
+
+```{r expression-known-markers-vlnplots2, fig.width=21, fig.height=8}
+VlnPlot(seu, features = c(known_markers), ncol = 3, pt.size = 0)
+```
+
+```{r, fig.width=10, fig.height=5}
+VlnPlot(seu, features = c("krt4"), pt.size = 0.1)
+```
+
+
+```{r, fig.width=6, fig.height=5}
+FeaturePlot(seu, features = c("elavl3"), pt.size = 0.1)
+```
+
+# Find new markers
+
+```{r findallmarkers}
+nc.markers <- FindAllMarkers(seu, only.pos = TRUE, min.pct = 0.25, logfc.threshold = 0.25)
+nc.markers %>% group_by(cluster) %>% top_n(n = 2, wt = avg_log2FC) -> top2
+top2
+```
+
+```{r, fig.height=10, fig.width=12}
+# top5 <- nc.markers %>% group_by(cluster) %>% top_n(n = 5, wt = avg_log2FC)
+# DoHeatmap(nc_wt, features = (top5$gene))
+```
+
+
+```{r, fig.width=12, fig.height=8}
+# df <- data.frame(
+#   clusters = 0:22,
+#   names = c("NC","neural cells (ncam1a+)", "hindbrain NC (fn1b+)","NC neural","notochord", # 0to4
+#             "polster (low nfeature)","epidermis","cranial cartilage (col12a1b+)","cranial cartilage (col11a1b+)",# 5to8
+#             "mut-specific (lmx1bb+)","primordial germ cells","mesodermal","pigment", # 9to12
+#             "ciliated (dnah2)","sensory","periderm","skeletal mucsle","vascular tubulogenesis",  # 13-17
+#             "polster","erythropoiesis","low nfeature","myeloid","retinal development" # 18-22
+#             )
+# )
+# seu$cell_types <- df$names[match(seu$seurat_clusters, df$clusters)]
+# 
+# DimPlot(seu, label = TRUE, group.by = "cell_types",reduction = "umap")
+```
+
+```{r}
+saveRDS(seu, "/t1-data/project/tsslab/zhu/multiome/analysis_newref/clustering/rds/seuobj_rna/seu_RNAsoupx64340_clustered.rds")
+write.csv(nc.markers, "/t1-data/project/tsslab/zhu/multiome/analysis_newref/clustering/results/seu_RNAsoupx64340_markers_20221226.csv")
+```
+
+# Technical
+
+```{r}
+sessionInfo()
+```

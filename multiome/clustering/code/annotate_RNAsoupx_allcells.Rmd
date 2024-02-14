@@ -1,0 +1,156 @@
+---
+title: "Annotate multiome all cells (SoupX filtered)"
+author: "Zhiyuan Hu"
+date: '2022-12-27 (last modified: `r Sys.Date()`)'
+output: 
+    prettydoc::html_pretty:
+    theme: architect
+    highlight: github
+---
+
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+library(dplyr)
+library(Seurat)
+library(patchwork)
+library(RColorBrewer)
+library(ggplot2)
+library(scales)
+stage_cols <- RColorBrewer::brewer.pal("Spectral", n = 11)
+genotype_cols <- RColorBrewer::brewer.pal("Set2", n = 8)[c(1,2,3,8)]
+sample_cols <- RColorBrewer::brewer.pal("Accent", n = 8)
+doublet_cols <- RColorBrewer::brewer.pal("Paired", n = 8)[c(6,8,2)]
+col.ls <- c(ArchR::ArchRPalettes$stallion, ArchR::ArchRPalettes$bear) # archR color palettes
+names(col.ls) <- NULL
+```
+
+## Read data
+
+```{r read data}
+seu <- readRDS("/ceph/project/tsslab/zhu/multiome/analysis_newref/clustering/rds/seuobj_rna/seu_RNAsoupx64340_clustered.rds")
+
+metadata_pred <- readRDS("/ceph/project/tsslab/zhu/multiome/analysis_newref/integration/data/cell_type_classification/multiome64340_metadata_bywagner2018.rds")
+seu$ClusterName_predicted <- metadata_pred$ClusterName_short_predicted
+seu$TissueName_predicted <- metadata_pred$TissueName_predicted
+
+nc.markers <- read.csv("/ceph/project/tsslab/zhu/multiome/analysis_newref/clustering/results/seu_RNAsoupx64340_markers_20221226.csv")
+```
+
+
+```{r}
+VlnPlot(seu, features = "nFeature_RNA", pt.size = 0, cols = col.ls) + NoLegend()
+```
+
+
+```{r}
+p1 <- DimPlot(seu,group.by = "TissueName_predicted", label = TRUE, reduction = "umap", cols = col.ls) 
+p1
+```
+
+```{r}
+ggsave("/Filers/home/z/zhu/t1data/multiome/analysis_newref/clustering/figures/for_pre/allcells_umap_TissueName_predicted.pdf", p1)
+```
+
+```{r}
+table(seu$ClusterName_predicted, seu$seurat_clusters)
+
+df_celltype <- data.frame(cluster = levels(seu$seurat_clusters),
+                           annotations_top1 = NA,
+                           top1_proportion = NA,
+                           annotations_top2 = NA,
+                          top2_proportion = NA,
+                           annotations_top3 = NA,
+                          top3_proportion = NA)
+for(i in levels(seu$seurat_clusters)){
+  freq <- table(seu$ClusterName_predicted[seu$seurat_clusters == i])
+  df_celltype$annotations_top1[df_celltype$cluster == i] <- names(which.max(freq))
+  df_celltype$top1_proportion[df_celltype$cluster == i] <- max(freq)/sum(freq)
+  
+  if(length(freq) > 1){
+    tmp <- sort( freq)[length( freq) - 1] 
+    df_celltype$annotations_top2[df_celltype$cluster == i] <- names(tmp)
+    df_celltype$top2_proportion[df_celltype$cluster == i] <- tmp/sum(freq)
+  }
+  if(length(freq) > 2){
+    tmp <- sort( freq)[length( freq) - 2] 
+    df_celltype$annotations_top3[df_celltype$cluster == i] <- names(tmp)
+    df_celltype$top3_proportion[df_celltype$cluster == i] <- tmp/sum(freq)
+  }
+  
+}
+```
+
+
+```{r, fig.height=12, fig.width=12}
+seu$ClusterName_predicted <- as.character(seu$ClusterName_predicted)
+p1 <- DimPlot(seu[,seu$seurat_clusters == 13],
+        group.by = "ClusterName_predicted", label = TRUE, reduction = "umap") + NoLegend() 
+p1
+```
+
+```{r}
+ggsave("/Filers/home/z/zhu/t1data/multiome/analysis_newref/clustering/figures/for_pre/allcells_umap_ClusterName_predicted.pdf", p1)
+```
+
+Parsing the cluster names
+
+```{r}
+seu$cell_type <- NA
+
+# Neural crest
+seu$cell_type[seu$seurat_clusters == 0] <- "neural crest"
+seu$cell_type[seu$seurat_clusters == 2] <- "neural crest mutant"
+seu$cell_type[seu$seurat_clusters == 5] <- "neural crest"
+seu$cell_type[seu$seurat_clusters == 6] <- "neural crest early"
+seu$cell_type[seu$seurat_clusters == 14] <- "neural crest"
+seu$cell_type[seu$seurat_clusters == 15] <- "neural crest"
+seu$cell_type[seu$seurat_clusters == 19] <- "neural crest"
+seu$cell_type[seu$seurat_clusters == 21] <- "neural crest pigment"
+seu$cell_type[seu$seurat_clusters == 24] <- "neural crest low-feature"
+# posterior cluster
+seu$cell_type[seu$seurat_clusters == 7] <- "notocord1"
+seu$cell_type[seu$seurat_clusters == 12] <- "notocord2"
+seu$cell_type[seu$seurat_clusters == 9] <- "mutant low-feature"
+seu$cell_type[seu$seurat_clusters == 23] <- "hatching gland"
+
+# tail bud
+seu$cell_type[seu$seurat_clusters ==4] <- "tailbud - PSM & spinal cord"
+seu$cell_type[seu$seurat_clusters ==3] <- "tailbud - PSM"
+seu$cell_type[seu$seurat_clusters ==16] <- "tailbud - PSM (myotome)"
+seu$cell_type[seu$seurat_clusters ==20] <- "tailbud - PSM (muscle - myl10)"
+
+# neural 
+seu$cell_type[seu$seurat_clusters == 1] <- "neural - midbrain"
+seu$cell_type[seu$seurat_clusters == 8] <- "spinal cord & neurons"
+seu$cell_type[seu$seurat_clusters == 13] <- "neural - diencephalon"
+seu$cell_type[seu$seurat_clusters == 27] <- "differentiating neurons"
+
+# unclassified
+seu$cell_type[seu$seurat_clusters == 17] <- "unclassified1"
+
+# outer clusters
+seu$cell_type[seu$seurat_clusters == 18] <- "pluripotent"
+
+seu$cell_type[seu$seurat_clusters == 10] <- "mesoderm mixed"
+seu$cell_type[seu$seurat_clusters == 11] <- "epidermal"
+seu$cell_type[seu$seurat_clusters == 22] <- "endothelial"
+seu$cell_type[seu$seurat_clusters == 25] <- "erythroid"
+
+seu$cell_type[seu$seurat_clusters == 26] <- "periderm"
+```
+
+
+```{r, fig.height=12, fig.width=18}
+p1 <- DimPlot(seu, group.by = "cell_type", label = TRUE, reduction = "umap", cols = col.ls) 
+p1
+```
+
+```{r}
+ggsave("/Filers/home/z/zhu/t1data/multiome/analysis_newref/clustering/figures/for_pre/allcells_umap_cellType_predicted.pdf", p1, width = 18, height = 12)
+```
+
+```{r}
+sessionInfo()
+```
+
