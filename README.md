@@ -1,17 +1,46 @@
-# neural-crest-scmultiomics-paper
- 
+# Single-cell multiomic study of neural crest
+
+This repository contains the code for the following analysis, catelogued by the sub-projects:
+* Multiome
+* Smart-seq3
+* Perturb-seq
+* ChIP-seq
+
+## 10x multiome
+
+### 1 Preprocessing and QC
+
+### 2 Clustering and cell type annotation
+
+### 3 Integration
+
+### 4 Velocity and Cellrank
+
+### 5 GRN SCENIC+
 
 
-# 10x multiome data analysis
+### 6 ATAC ArchR analysis
 
-## Preprocessing
+### 7 MultiVelo
 
-## Ambient RNA removal
+### 8 Regulon dynamic analysis
 
-## Integration analysis
+### 9 Regulon functional analysis
+
+### 10 ChromBPNet
 
 
-# Smart-seq3 data analysis
+## Smart-seq3
+
+### 1 Preprocessing
+
+### 2 Clustering
 
 
-# Perturb-seq data analysis
+### 3 Velocity
+
+
+## Perturb-seq
+
+
+## ChIP-seq
