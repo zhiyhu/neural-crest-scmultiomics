@@ -1,0 +1,49 @@
+---
+title: "check TOMTOM results"
+output: html_document
+date: "2024-01-02"
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+
+```{r}
+rls_dc <- read.delim("/home/huzhiy/projects_ox/multiome/analysis_newref/chrombpnet/data/14motif_analysis/tomtom_daniocode/tomtom.tsv")
+```
+
+```{r}
+motif <- unique(rls_dc$Query_ID)
+df_motif <- data.frame(id = motif[1:165], min_q = NA)
+for(itor in motif[1:165]){
+  df_motif$min_q[df_motif$id == itor] <- min(rls_dc$q.value[rls_dc$Query_ID == itor])
+}
+```
+
+```{r}
+hist(df_motif$min_q, breaks =  50)
+```
+
+```{r}
+rls_dc <- read.delim("/home/huzhiy/projects_ox/multiome/analysis_newref/chrombpnet/data/14motif_analysis/tomtom_JASPAR core 2022 vertebrate//tomtom.tsv")
+```
+
+```{r}
+motif <- unique(rls_dc$Query_ID)
+df_motif <- data.frame(id = motif[1:165], min_q = NA)
+for(itor in motif[1:165]){
+  df_motif$min_q[df_motif$id == itor] <- min(rls_dc$q.value[rls_dc$Query_ID == itor])
+}
+```
+
+```{r}
+hist(df_motif$min_q, breaks =  50)
+```
+
+```{r}
+chosen <- read.table("/home/huzhiy/projects_ox/multiome/analysis_newref/chrombpnet/data/14motif_analysis/tomtom_manual_curation_chosen.txt")
+gimme_cluster <- read.delim("/home/huzhiy/projects_ox/multiome/analysis_newref/chrombpnet/data/14motif_analysis/gimme_cluster/cluster_key.txt", header = F)
+
+```
+

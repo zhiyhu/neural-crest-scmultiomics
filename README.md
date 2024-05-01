@@ -5,6 +5,7 @@ This repository contains the code for the following analysis, catelogued by the 
 * Smart-seq3
 * Perturb-seq
 * ChIP-seq
+* Merscope
 
 ## 10x multiome
 

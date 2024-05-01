@@ -1,0 +1,261 @@
+---
+title: "Annotate NC clusters (SoupX filtered)"
+author: "Zhiyuan Hu"
+date: '2022-12-27 (last modified: `r Sys.Date()`)'
+output: 
+    prettydoc::html_pretty:
+    theme: architect
+    highlight: github
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+library(dplyr)
+library(Seurat)
+library(patchwork)
+library(RColorBrewer)
+library(scales)
+library(ggplot2)
+stage_cols <- RColorBrewer::brewer.pal("Spectral", n = 11)
+genotype_cols <- RColorBrewer::brewer.pal("Set2", n = 8)[c(1,2,3,8)]
+sample_cols <- RColorBrewer::brewer.pal("Accent", n = 8)
+doublet_cols <- RColorBrewer::brewer.pal("Paired", n = 8)[c(6,8,2)]
+col.ls <- c(ArchR::ArchRPalettes$stallion, ArchR::ArchRPalettes$bear) # archR color palettes
+names(col.ls) <- NULL
+```
+
+# Read data
+
+```{r}
+seu <- readRDS("/t1-data/project/tsslab/zhu/multiome/analysis_newref/clustering/rds/seuobj_rna/seu_RNAsoupx_NC.rds")
+DefaultAssay(seu) <- "RNA"
+nc.markers <- read.csv("/t1-data/project/tsslab/zhu/multiome/analysis_newref/clustering/results/NC_markers_RNAsoupx.csv")
+```
+
+# add Genotyping prediction results
+
+This step is done by the genotype.sh (amplicon_analysis.R) in the genotyping directory
+
+```{r}
+pred <- readRDS("/t1-data/project/tsslab/zhu/multiome/analysis_newref/genotyping/rds/predicted_genotype.rds")
+table(is.na(pred$predicted_genotype))
+
+table(rownames(pred) %in% colnames(seu)) # how many cells have prediction
+
+pred <- pred[!is.na(pred$predicted_genotype),,drop = F]
+seu$genotype_new <- seu$genotype
+seu$genotype_new[match(rownames(pred), colnames(seu))] <- pred$predicted_genotype
+table(seu$genotype_new, seu$sample) # genotype (ground truth + predicted)
+```
+```{r, fig.height=6, fig.width=15}
+DimPlot(seu, reduction = "tsne", split.by = "genotype_new", 
+        cols = alpha(stage_cols[c(2,5,8,10)], 0.4), pt.size = 1, group.by = "stage")
+```
+
+
+```{r, fig.height=6, fig.width=15}
+DimPlot(seu, reduction = "tsne", split.by = "genotype_new", 
+        cols = alpha(stage_cols[c(2,5,8,10)], 0.4), pt.size = 1, group.by = "stage")
+```
+
+```{r, fig.height=6, fig.width=15}
+DimPlot(seu, reduction = "tsne", split.by = "genotype_new", 
+        cols = alpha(col.ls, 0.4), pt.size = 1, group.by = "seurat_clusters", label = TRUE)
+```
+
+### Genotype-specific clusters
+
+Mutant-specific clusters: 3, 10, 12, 17
+
+```{r, fig.height=5, fig.width=8}
+df <- data.frame(table(seu$seurat_clusters, seu$genotype_new))
+df$Var2 <- factor(df$Var2, levels = c("cit","dp"))
+ggplot(df, aes(x = Var1, y = Freq, fill = Var2)) + geom_bar(position = "stack", stat = "identity") + scale_fill_manual(values = alpha(genotype_cols)[c(1,2)]) + theme_classic()
+```
+
+# Marker genes
+
+```{r}
+nc.markers %>% group_by(cluster) %>% top_n(n = 2, wt = avg_log2FC) -> top2
+top2
+```
+
+```{r}
+FeaturePlot(seu, features = c("otx2b"), reduction  = 'tsne')
+```
+
+
+# Cell cycle
+
+```{r}
+# A list of cell cycle markers, from Tirosh et al, 2015, is loaded with Seurat.  We can
+# segregate this list into markers of G2/M phase and markers of S phase
+s.genes <- tolower(cc.genes$s.genes)
+g2m.genes <- tolower(cc.genes$g2m.genes)
+
+seu <- CellCycleScoring(seu, s.features = s.genes, g2m.features = g2m.genes, set.ident = TRUE)
+DimPlot(seu,  reduction  = 'tsne')
+```
+
+
+# Annotation
+
+```{r}
+# Make a set of data.frames to keep track during cluster assignment.
+clusters <- length(unique(seu$seurat_clusters))
+cluster.assignments <- data.frame(
+  cluster=(1:clusters)-1,
+  name=rep(NA, clusters),
+  row.names=(1:clusters)-1
+)
+
+cluster.assignments["13","name"] <- "NPB_nohox"
+cluster.assignments["15","name"] <- "NPB_nohox_cycling"
+cluster.assignments["18","name"] <- "NPB_hox2" #??
+cluster.assignments["14","name"] <- "NPB_hox3" #??
+
+cluster.assignments["11","name"] <- "dNC_nohox_cycling" # delaminating NC
+cluster.assignments["0","name"] <- "dNC_nohox"
+cluster.assignments["10","name"] <- "dNC_hoxa2b"
+cluster.assignments["21","name"] <- "dNC_hox34" 
+cluster.assignments["20","name"] <- "NC_trunk"
+
+cluster.assignments["22","name"] <- "mNC_vagal"
+cluster.assignments["8","name"] <- "mNC_hox34"
+
+cluster.assignments["1","name"] <- "mNC_nohox" # migratory NC
+cluster.assignments["2","name"] <- "mNC_arch1"
+cluster.assignments["6","name"] <- "mNC_arch2"
+cluster.assignments["5","name"] <- "mNC_head_mesenchymal"
+
+cluster.assignments["3","name"] <- "Pigment_sox6_high"
+cluster.assignments["12","name"] <- "Pigment_gch2_high"
+
+cluster.assignments["7","name"] <- "Mutant_nohox_early"
+cluster.assignments["4","name"] <- "Mutant_nohox_cycling"
+cluster.assignments["9","name"] <- "Mutant_nohox_12_22ss"
+cluster.assignments["16","name"] <- "Mutant_hox2" ##?
+cluster.assignments["19","name"] <- "Mutant_hox3" ##?
+cluster.assignments["17","name"] <- "Mutant_pigment"
+```
+
+
+# Add annotation
+
+```{r, fig.width=16, fig.height=8}
+seu$cell_type <- NA
+seu$cell_type <- cluster.assignments$name[match(seu$seurat_clusters, cluster.assignments$cluster)]
+# seu$cell_type <- paste0(seu$seurat_clusters, ":", seu$cell_type)
+# seu$cell_type <- factor(seu$cell_type, paste0(cluster.assignments$cluster, ":", cluster.assignments$name))
+# 
+col.ls2 <- col.ls
+# names(col.ls2) <- paste0(cluster.assignments$cluster, ":", cluster.assignments$name)
+DimPlot(seu, label = T, group.by = "cell_type",
+        reduction = "tsne", cols = alpha(col.ls2, 0.1), pt.size = 1,
+        repel = T)
+```
+
+
+
+
+## other markers: BMP11/gdf1
+
+gdf11: cardiac and skeletal muscle https://www.ncbi.nlm.nih.gov/pmc/articles/PMC5833306/
+
+gdf11 is bmp11: https://www.oncotarget.com/article/20258/text/; https://www.ncbi.nlm.nih.gov/pmc/articles/PMC3773925/
+
+cadm1a: Predicted to be active in neuron projection; plasma membrane; and synapse
+
+
+```{r, fig.width=8, fig.height=3}
+FeaturePlot(seu, features = c("cadm1a","gdf11"), pt.size = 0.1, reduction = "tsne") 
+```
+
+ebf3a: sensory system
+
+```{r, fig.width=12, fig.height=7}
+DotPlot(seu, features = c("gdf11","sema3d","ebf3a","meis2a","cadm1a","eya1","runx1","sox10"), group.by = "cell_type") 
+```
+
+## hox genes
+
+[1] "hoxa13b" "hoxa11b" "hoxa10b" "hoxa9b"  "hoxa2b"  "hoxa13a" "hoxa11a" "hoxa9a"  "hoxa4a"  "hoxa5a"  "hoxa1a" 
+[1] "hoxb13a" "hoxb10a" "hoxb9a"  "hoxb8a"  "hoxb7a"  "hoxb3a"  "hoxb6a"  "hoxb5a"  "hoxb4a"  "hoxb2a"  "hoxb1a"  "hoxb8b"  "hoxb6b"  "hoxb5b"  "hoxb1b" 
+[1] "hoxc10a" "hoxc13a" "hoxc12a" "hoxc11a" "hoxc3a"  "hoxc9a"  "hoxc8a"  "hoxc6a"  "hoxc5a"  "hoxc4a"  "hoxc1a"  "hoxc13b" "hoxc12b" "hoxc11b" "hoxc6b" 
+[1] "hoxd3a"  "hoxd4a"  "hoxd9a"  "hoxd10a" "hoxd11a" "hoxd12a" "hoxd13a"
+
+
+mafba/Kreisler: r5 r6
+Follistatin/fsta: r2, r4, r6
+Krox-20/egr2: r3 r5
+Engrailed-2/en2b en2a: midbrain, r1
+CRABP/ :r4 r5 r6
+
+```{r, fig.width=19, fig.height=7}
+# hox_genes <-  unique(nc.markers$gene[grep("hox", nc.markers$gene)])
+# hox_genes <- stringr::str_sort(hox_genes, numeric = T )
+# hox_genes[order(hox_genes, decreasing = FALSE)]
+hox_genes <- c("hoxa2b","hoxb2a",
+               "hoxa1a","hoxb1a",
+               "hoxb3a",
+               "hoxd4a", "hoxb4a",
+               "en2a","en2b",
+               "fsta","egr2b", "mafba",
+               "crabp1a","crabp1b","hoxb5b","hoxb6a","hoxb6b",
+              "hoxb7a","hoxb9a","hoxa10b","hoxc10a"
+               )
+DotPlot(seu, features = c(hox_genes), group.by = "cell_type")
+```
+
+
+
+## Vagal markers
+
+itga3 is a heart marker ? https://etheses.whiterose.ac.uk/27656/1/DERRICK_Thesis_Aug2020.pdf
+
+runx2b is a osteoblast lineage marker https://www.nature.com/articles/s41467-021-27594-w
+
+cxcl12a stromal branch
+
+hyal4 cartilage, bone, periosteum, and tendon and ligament
+
+fgf10a/b+ branch connected to gill pillar, tunica media, and perivascular cells, as well as a distinct type of gill cartilage
+
+```{r, fig.width=12, fig.height=7}
+DotPlot(seu, features = c("itga3a","ret","runx2b","cxcl12a","hyal4","fgf10a","fgf10b","foxp2","foxp4","sox6"), group.by = "cell_type") 
+```
+
+
+
+## neural fate genes
+
+```{r, fig.width=12, fig.height=7}
+DotPlot(seu, features = c("ret","phox2bb","phox2ba","mafa","neurog1","neurog2","elavl3","tmem59l"), group.by = "cell_type") 
+```
+
+## Head mesenchymal markers
+
+```{r, fig.width=12, fig.height=7}
+DotPlot(seu, features = c("col1a1a","col1a2","col2a1a", "col2a1b","col11a1a","col11a1b", "tnc","sox5","sox6","myh9b"), group.by = "cell_type") 
+```
+ 
+## migrating NC markers
+
+```{r, fig.width=12, fig.height=7}
+DotPlot(seu, features = c("fli1a","plpp3","bnc2","nrp2a","nrp2b","col11a1b","krt18b","ntn1a"), group.by = "cell_type") 
+```
+
+# Save data
+
+```{r}
+saveRDS(seu@meta.data,"/t1-data/project/tsslab/zhu/multiome/analysis_newref/clustering/rds/metadata/seu_RNAsoupx_NC_metadata.rds")
+```
+
+
+
+# Session info
+
+```{r}
+sessionInfo()
+```
+
