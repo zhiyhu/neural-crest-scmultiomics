@@ -20,31 +20,30 @@ conda activate chrombpnet
 wkdir=/home/huzhiy/projects_ox/multiome/analysis_newref/chrombpnet
 refdir=/home/huzhiy/projects_ox/ref/ensembl105/cellranger_arc/GRCz11_ensembl105_foxd3_cellranger_arc/star
 
+# chrombpnet prep splits
+mkdir ${wkdir}/data/splits
+chrombpnet prep splits -c ${wkdir}/data/ref/GRCz11_ensembl105_foxd3.new.chrom.subset.sizes \
+                       -tcr chr1 chr3 chr6 \
+                       -vcr chr8 chr20 -op ${wkdir}/data/splits/fold_0
 
-# mkdir ${wkdir}/data/splits
-# chrombpnet prep splits -c ${wkdir}/data/ref/GRCz11_ensembl105_foxd3.new.chrom.subset.sizes \
-#                        -tcr chr1 chr3 chr6 \
-#                        -vcr chr8 chr20 -op ${wkdir}/data/splits/fold_0
-
+## select chromosomes 1-25 in fasta
 fa=${wkdir}/data/ref/GRCz11_ensembl105_foxd3.new.fa
-# sed '/^>/ s/>/>chr/' /home/huzhiy/projects_ox/ref/ensembl105/cellranger_arc/GRCz11_ensembl105_foxd3_cellranger_arc/fasta/genome.fa > \
-#     $fa 
+sed '/^>/ s/>/>chr/' /home/huzhiy/projects_ox/ref/ensembl105/cellranger_arc/GRCz11_ensembl105_foxd3_cellranger_arc/fasta/genome.fa > \
+    $fa 
 
-# for cluster in merged_NPB_nohox merged_dNC_nohox mNC_head_mesenchymal mNC_arch1 Pigment_sox6_high  Mutant_nohox_early mNC_nohox Mutant_nohox_12_22ss #  #  
-# do 
-# # sed 's/^/chr/' ${wkdir}/data/04peaks/${cluster}.peaks_no_blacklist.bed > ${wkdir}/data/04peaks/${cluster}.peaks_no_blacklist_tmp.bed
-# awk -v OFS='\t' '$1 ~ /^chr[0-9]+$/ {split($1,a,"chr"); if (a[2] >= 1 && a[2] <= 25) print $0}' \
-# ${wkdir}/data/04peaks/${cluster}.peaks_no_blacklist.bed > ${wkdir}/data/04peaks/${cluster}.peaks_no_blacklist_tmp2.bed
-# 
-# echo $cluster
-# 
-# cut -f1  ${wkdir}/data/04peaks/${cluster}.peaks_no_blacklist_tmp2.bed  | sort | uniq
-# done
+# select chromosomes 1-25 in the peaks
+for cluster in merged_NPB_nohox merged_dNC_nohox mNC_head_mesenchymal mNC_arch1 Pigment_sox6_high  Mutant_nohox_early mNC_nohox Mutant_nohox_12_22ss #  #  
+do 
+awk -v OFS='\t' '$1 ~ /^chr[0-9]+$/ {split($1,a,"chr"); if (a[2] >= 1 && a[2] <= 25) print $0}' \
+${wkdir}/data/04peaks/${cluster}.peaks_no_blacklist.bed > ${wkdir}/data/04peaks/${cluster}.peaks_no_blacklist_tmp2.bed
 
-# merged_NPB_nohox
-# for cluster in  merged_dNC_nohox #mNC_head_mesenchymal mNC_arch1 Pigment_sox6_high  Mutant_nohox_early mNC_nohox Mutant_nohox_12_22ss #  #
-# do
+echo $cluster
 
+# sort and remove duplicates
+cut -f1  ${wkdir}/data/04peaks/${cluster}.peaks_no_blacklist_tmp2.bed  | sort | uniq
+done
+
+# chrombpnet prep nonpeaks
 cluster=$1
 echo $cluster
 chrombpnet prep nonpeaks -g $fa \
@@ -53,6 +52,5 @@ chrombpnet prep nonpeaks -g $fa \
                          -fl ${wkdir}/data/splits/fold_0.json \
                          -br /home/huzhiy/projects_ox/ref/blacklist/danRer11_blacklist_USCSliftover_2023oct.bed \
                          -o ${wkdir}/data/05output/${cluster}
-# done
-# 
+
 

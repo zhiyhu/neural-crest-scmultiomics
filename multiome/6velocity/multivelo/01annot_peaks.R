@@ -63,21 +63,3 @@ range(df$distance[df$peak_type == "promoter"])
 df <- df[!is.na(df$peak_type),]
 
 write.table(df, sep = "\t", quote = FALSE, file = "/ceph/project/tsslab/zhu/multiome/analysis_newref/multivelo2023dec/data/01peaks/multivelo_peakanno_scplus.txt", row.names = FALSE)
-
-
-scplus_peaks_ranges <- paste(as.character(scplus_peaks@seqnames), scplus_peaks@ranges@start-1, scplus_peaks@ranges@start + 499, sep="-")
-peak_annot_ranges <- paste(df$chrom, df$start, df$end, sep = "-")
-table(peak_annot_ranges %in% scplus_peaks_ranges)
-# FALSE   TRUE 
-# 335414   2431
-
-# library(GenomicRanges)
-# grtest.unstrand <- GRanges(
-#   seqnames = "6",
-#   ranges=IRanges(
-#     start=c(32090000), # note the difference
-#     width=110000))
-# 
-# GenomicRanges::intersect(scplus_peaks, grtest.unstrand, )[1:5,]
-
-df[df$chrom == 6 & df$start >= 32090000 & df$start < 32200000,]

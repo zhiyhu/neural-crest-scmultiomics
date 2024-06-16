@@ -1,17 +1,11 @@
 #!/bin/bash
 #SBATCH --job-name=splitbam
-#SBATCH -o logs/%j_%x.log 
-#SBATCH -e logs/%j_%x.log
-#SBATCH --nodes=1
-#SBATCH --tasks-per-node=1
-#SBATCH --mem=50gb
 
 # Zhiyuan Hu
 # 17 Oct 2023
 # last modified 17 Oct 2023
 
 eval "$(conda shell.bash hook)"
-
 conda activate split_scATAC
 
 sample=$1

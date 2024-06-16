@@ -10,7 +10,6 @@
 ## 27 dec 2023
 ## last modified 27 dec 2023
 
-# module load cuda/11.2
 eval "$(conda shell.bash hook)"
 conda activate /home/huzhiy/miniforge3/envs/tfmodiscolit
 
