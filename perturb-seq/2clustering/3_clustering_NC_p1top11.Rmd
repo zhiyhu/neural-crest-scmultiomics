@@ -1,0 +1,269 @@
+---
+title: "Clustering analysis of perturbseq data - NC subset"
+date: "2023-Nov-21 (last modified: `r Sys.Date()`)"
+output:
+  prettydoc::html_pretty:
+    theme: architect
+    highlight: github
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+library(dplyr)
+library(Seurat)
+# library(patchwork)
+library(RColorBrewer)
+library(scales)
+library(ggplot2)
+library(cowplot)
+stage_cols <- RColorBrewer::brewer.pal("Spectral", n = 11)
+genotype_cols <- RColorBrewer::brewer.pal("Set2", n = 8)[c(1,2,3,8)]
+sample_cols <- RColorBrewer::brewer.pal("Accent", n = 8)
+doublet_cols <- RColorBrewer::brewer.pal("Paired", n = 8)[c(6,8,2)]
+col.ls <- c(ArchR::ArchRPalettes$stallion, ArchR::ArchRPalettes$bear) # archR color palettes
+names(col.ls) <- NULL
+```
+
+# read data
+
+```{r}
+seu <- readRDS("perturb_seq/analysis/clustering/output_p1top11/seu_allsinglets_clustered.rds")
+nc.marker <- read.csv("perturb_seq/analysis/clustering/output_p1top11/seu_all_markers.csv", row.names = 1)
+```
+
+# Subset
+
+
+```{r}
+seu <- seu[,seu$seurat_clusters %in% c(0,1,2,3,4,7,9,10,12,14,21)]
+```
+
+# seurat pipeline
+
+```{r, fig.width=12, fig.height=5}
+DefaultAssay(seu) <- "RNA"
+seu <- NormalizeData(seu, normalization.method = "LogNormalize", scale.factor = 10000)
+seu <- FindVariableFeatures(seu, selection.method = "vst", nfeatures = 2000)
+
+# Identify the 10 most highly variable genes
+top10 <- head(VariableFeatures(seu), 10)
+
+# plot variable features with and without labels
+plot1 <- VariableFeaturePlot(seu)
+plot2 <- LabelPoints(plot = plot1, points = top10, repel = TRUE)
+plot1 + plot2
+```
+
+```{r}
+all.genes <- rownames(seu)
+seu <- ScaleData(seu, features = all.genes)
+seu <- RunPCA(seu, features = VariableFeatures(object = seu))
+# Examine and visualize PCA results a few different ways
+print(seu[["pca"]], dims = 1:5, nfeatures = 5)
+```
+
+```{r}
+DimPlot(seu, reduction = "pca", group.by = "sample")
+```
+
+```{r}
+ElbowPlot(seu, ndims = 50)
+```
+
+```{r}
+seu <- FindNeighbors(seu, dims = 1:20, k.param = 15)
+seu <- FindClusters(seu, resolution = 0.8)
+# If you haven't installed UMAP, you can do so via reticulate::py_install(packages =
+# 'umap-learn')
+seu <- RunTSNE(seu, dims = 1:20)
+```
+
+## Clustering results
+
+```{r}
+DimPlot(seu, label = TRUE, reduction = "tsne",cols = alpha(col.ls, 0.3))
+```
+
+```{r}
+VlnPlot(seu, "nFeature_RNA") + NoLegend()
+```
+
+
+# integration with multiome to annotate
+
+```{r}
+multiome <- readRDS("multiome/analysis_newref/clustering/rds/seuobj_rna/seu_RNAsoupx_NC.rds")
+multiome@meta.data <- readRDS("multiome/analysis_newref/clustering/rds/metadata/seu_RNAsoupx_NC_metadata.rds")
+```
+
+## Run rpca
+
+```{r}
+seu$proj <- "perturbseq"
+multiome$proj <-  "multiome"
+# normalize and identify variable features for each dataset independently
+ifnb.list <- lapply(X = list(multiome, seu), FUN = function(x) {
+    x <- NormalizeData(x)
+    x <- FindVariableFeatures(x, selection.method = "vst", nfeatures = 2000)
+})
+
+# select features that are repeatedly variable across datasets for integration run PCA on each
+# dataset using these features
+features <- SelectIntegrationFeatures(object.list = ifnb.list)
+ifnb.list <- lapply(X = ifnb.list, FUN = function(x) {
+    x <- ScaleData(x, features = features, verbose = FALSE)
+    x <- RunPCA(x, features = features, verbose = FALSE)
+})
+```
+
+```{r}
+seu.anchors <- FindIntegrationAnchors(object.list = ifnb.list, anchor.features = features, reduction = "rpca")
+# this command creates an 'integrated' data assay
+seu.combined <- IntegrateData(anchorset = seu.anchors)
+```
+
+```{r}
+# specify that we will perform downstream analysis on the corrected data note that the
+# original unmodified data still resides in the 'RNA' assay
+DefaultAssay(seu.combined) <- "integrated"
+
+# Run the standard workflow for visualization and clustering
+seu.combined <- ScaleData(seu.combined, verbose = FALSE)
+seu.combined <- RunPCA(seu.combined, npcs = 30, verbose = FALSE)
+seu.combined <- RunTSNE(seu.combined, reduction = "pca", dims = 1:30)
+seu.combined <- FindNeighbors(seu.combined, reduction = "pca", dims = 1:30)
+seu.combined$old_seurat_clusters <- seu.combined$seurat_clusters
+seu.combined <- FindClusters(seu.combined, resolution = 0.5)
+```
+
+# visualise integrated data
+
+```{r, fig.width=12, fig.height=5}
+# Visualization
+p1 <- DimPlot(seu.combined, reduction = "tsne", group.by = "proj", raster=FALSE)
+p2 <- DimPlot(seu.combined, reduction = "tsne", group.by = "seurat_clusters", label = TRUE,
+    repel = TRUE, raster=FALSE)
+p1 + p2
+```
+
+```{r, fig.width=12, fig.height=12}
+DimPlot(seu.combined[,seu.combined$proj == "multiome"], reduction = "tsne", group.by = "cell_type", label = TRUE, repel = TRUE)+NoLegend()
+```
+
+```{r, fig.height=9, fig.width=12}
+data_table <- table(seu.combined$cell_type[seu.combined$proj == "multiome"], seu.combined$seurat_clusters[seu.combined$proj == "multiome"])
+pheatmap::pheatmap(data_table, color = colorRampPalette(c("blue", "white", "red"))(50), scale = "row", clustering_distance_rows = "euclidean",cluster_cols = FALSE, clustering_distance_cols = "euclidean")
+```
+
+```{r}
+seu.combined$cell_anno <- NA
+seu.combined$cell_anno[seu.combined$seurat_clusters %in% c(0)] <- "Pigment"
+seu.combined$cell_anno[seu.combined$seurat_clusters == 1] <- "mNC_arch1"
+seu.combined$cell_anno[seu.combined$seurat_clusters == 2] <- "Pigment_sox6_high_vagel"
+seu.combined$cell_anno[seu.combined$seurat_clusters == 3] <- "mNC_head_mesenchymal"
+seu.combined$cell_anno[seu.combined$seurat_clusters == 4] <- "mNC_head_mesenchymal"
+seu.combined$cell_anno[seu.combined$seurat_clusters == 5] <- "mNC_nohox"
+seu.combined$cell_anno[seu.combined$seurat_clusters == 6] <- "mNC_arch2"
+seu.combined$cell_anno[seu.combined$seurat_clusters == 7] <- "Mutant"
+seu.combined$cell_anno[seu.combined$seurat_clusters == 8] <- "dNC_nohox"
+seu.combined$cell_anno[seu.combined$seurat_clusters == 9] <- "NPB_nohox"
+seu.combined$cell_anno[seu.combined$seurat_clusters %in% c(10)] <- "mNC_vagal"
+seu.combined$cell_anno[seu.combined$seurat_clusters == 11] <- "unclassified1"
+seu.combined$cell_anno[seu.combined$seurat_clusters == 12] <- "unclassified2"
+seu.combined$cell_anno[seu.combined$seurat_clusters == 13] <- "mNC_hox34"
+seu.combined$cell_anno[seu.combined$seurat_clusters == 14] <- "NPB_hox"
+seu.combined$cell_anno[seu.combined$seurat_clusters == 15] <- "unclassified3"
+seu.combined$cell_anno[seu.combined$seurat_clusters == 16] <- "Mutant_hox23"
+seu.combined$cell_anno[seu.combined$seurat_clusters == 17] <- "dNC_hoxa2b"
+seu.combined$cell_anno[seu.combined$seurat_clusters == 18] <- "dNC_hox34"
+```
+
+```{r}
+DimPlot(seu.combined, reduction = "tsne", group.by = "proj", split.by = "proj",raster=FALSE) + NoLegend()
+```
+
+```{r, fig.width=12, fig.height=5}
+DimPlot(seu.combined, reduction = "tsne", group.by = "old_seurat_clusters", split.by = "proj",raster=FALSE, label = TRUE)
+```
+
+```{r}
+DimPlot(seu.combined[,seu.combined$sgRNA_group == "control"], reduction = "tsne",raster=FALSE, group.by = "cell_anno", label = TRUE)
+```
+
+```{r}
+DimPlot(seu.combined[,seu.combined$sgRNA_group == "mitfa_tfec"], reduction = "tsne", group.by = "cell_anno", label = TRUE)
+```
+
+
+```{r}
+seu$cell_anno <- seu.combined$cell_anno[match(colnames(seu), colnames(seu.combined))]
+```
+
+```{r, fig.width=12, fig.height=9}
+DimPlot(seu, label = TRUE, reduction = "tsne",group.by = "cell_anno",cols = alpha(col.ls, 0.3)) 
+```
+
+# repeat dim reduction with integration HVGs
+
+```{r}
+seu <- RunPCA(seu, features = features)
+# Examine and visualize PCA results a few different ways
+print(seu[["pca"]], dims = 1:5, nfeatures = 5)
+```
+
+```{r}
+ElbowPlot(seu, ndims = 50)
+```
+
+```{r}
+seu <- FindNeighbors(seu, dims = 1:20, k.param = 7)
+seu <- FindClusters(seu, resolution = 0.8)
+# If you haven't installed UMAP, you can do so via reticulate::py_install(packages =
+# 'umap-learn')
+seu <- RunTSNE(seu, dims = 1:20)
+```
+
+## Clustering results
+
+```{r, fig.width=16, fig.height=6}
+p1 <- DimPlot(seu, label = TRUE, reduction = "tsne",cols = alpha(col.ls, 0.3))
+p2 <- DimPlot(seu, label = TRUE, reduction = "tsne",cols = alpha(col.ls, 0.3), group.by = "cell_anno") + NoLegend()
+p1+p2
+```
+
+```{r}
+VlnPlot(seu, group.by = "seurat_clusters", features = "nFeature_RNA")
+```
+
+# find markers
+
+```{r findallmarkers}
+nc.markers <- FindAllMarkers(seu, only.pos = TRUE, min.pct = 0.25, logfc.threshold = 0.25)
+nc.markers %>% group_by(cluster) %>% top_n(n = 2, wt = avg_log2FC) -> top2
+top2
+```
+
+# save data
+
+```{r}
+saveRDS(seu,"perturb_seq/analysis/clustering/output_p1top11/seu_NC_clustered.rds")
+write.csv(nc.markers, "perturb_seq/analysis/clustering/output_p1top11/seu_NC_markers.csv")
+```
+
+```{r}
+library(sceasy)
+library(reticulate)
+# use_condaenv("cellrank2")
+seu <- readRDS("perturb_seq/analysis/clustering/output_p1top11/seu_NC_clustered.rds")
+sceasy::convertFormat(seu, from="seurat", to="anndata", main_layer = "counts",
+                       outFile='perturb_seq/analysis/clustering/output_p1top11/seu_NC_clustered.h5ad')
+```
+
+
+
+# Technical
+
+```{r}
+sessionInfo()
+```
+

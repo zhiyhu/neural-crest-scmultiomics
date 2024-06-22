@@ -1,0 +1,209 @@
+---
+title: "Extensive analysis of meld likelihood based on RPCA-imputed latent time"
+date: "2023-12-15 (last modified: `r Sys.Date()`)"
+output:
+  prettydoc::html_pretty:
+    theme: architect
+    highlight: github
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+
+```{r}
+library(Seurat)
+library(patchwork)
+library(ggplot2)
+library(viridis)
+library(dplyr)
+library(scales)
+library(cowplot)
+library(ggpubr)
+library(RColorBrewer)
+stage_cols <- RColorBrewer::brewer.pal("Spectral", n = 11)
+genotype_cols <- RColorBrewer::brewer.pal("Set2", n = 8)[c(1,2,3,8)]
+sample_cols <- RColorBrewer::brewer.pal("Accent", n = 8)
+doublet_cols <- RColorBrewer::brewer.pal("Paired", n = 8)[c(6,8,2)]
+col.ls <- c(ArchR::ArchRPalettes$stallion, ArchR::ArchRPalettes$bear) # archR color palettes
+names(col.ls) <- NULL
+```
+
+# Read data
+
+```{r}
+seu_merged <- readRDS("../data/integrated/rpca_perturbseq_multiome_latentTime.rds") 
+scvi_seu <- readRDS("../data/integrated/scvi_perturbseq_multiome_latentTime.rds")
+```
+
+
+
+```{r}
+perturbseq <- readRDS("perturb_seq/analysis/clustering/output_p1top11/seu_NC_clustered.rds")
+perturbseq <- perturbseq[,!perturbseq$seurat_clusters %in% c('1', '2', '3', '8', '11', '16','17')]
+```
+
+## compare latent time
+
+```{r}
+perturbseq$latent_time_imputed <- seu_merged$latent_time_imputed[match(colnames(perturbseq), colnames(seu_merged))]
+perturbseq$latent_time_imputed_scvi <- scvi_seu$latent_time_imputed[match(colnames(perturbseq), colnames(scvi_seu))]
+perturbseq$term_state_imputed <- seu_merged$term_states_imputed[match(colnames(perturbseq), colnames(seu_merged))]
+```
+
+```{r}
+cor(perturbseq$latent_time_imputed, perturbseq$latent_time_imputed_scvi)
+```
+
+```{r}
+df_plot <- data.frame(rpca=perturbseq$latent_time_imputed,
+                      scvi=perturbseq$latent_time_imputed_scvi)
+sp <- ggscatter(df_plot, x = "rpca", y = "scvi",color = alpha("grey50", 0.5),
+   add = "reg.line",  # Add regressin line
+   add.params = list(color = "blue", fill = "lightgray"), # Customize reg. line
+   conf.int = TRUE # Add confidence interval
+   )
+# Add correlation coefficient
+sp + stat_cor(method = "pearson")
+```
+
+## phate data
+
+```{r}
+phate_data <- read.csv("../data/phate_coordinates.csv", row.names = 1)
+head(phate_data)
+```
+
+```{r}
+perturbseq@reductions[["phate"]] <- CreateDimReducObject(as.matrix(phate_data)*100, key = "phate")
+```
+
+## refine cell types
+
+```{r}
+perturbseq <- FindClusters(perturbseq, algorithm = 4, resolution = 1)
+```
+
+```{r, fig.height=5, fig.width=12}
+p1 <- DimPlot(perturbseq, reduction = "phate", group.by = "cell_anno", cols = col.ls)
+p2 <- DimPlot(perturbseq, reduction = "phate", group.by = "RNA_snn_res.1", cols = col.ls, label = TRUE)
+p1 + p2
+```
+```{r, fig.height=10, fig.width=10}
+FeaturePlot(perturbseq, c("hoxc3a","sox6","gch2","hoxc9a","hoxa2b","grem2b","dlx2a"), 
+            reduction = "phate",ncol = 3)
+```
+
+```{r}
+perturbseq$cell_anno_old <- perturbseq$cell_anno
+perturbseq$cell_anno[perturbseq$cell_anno == "Pigment_sox6_high_vagel"] <- "mNC_vagal"
+perturbseq$cell_anno[perturbseq$RNA_snn_res.1 == 2] <- "Pigment_gch2_high"
+perturbseq$cell_anno[perturbseq$RNA_snn_res.1 == 12] <- "Pigment_1"
+perturbseq$cell_anno[perturbseq$RNA_snn_res.1 == 13] <- "mNC_trunk"
+perturbseq$cell_anno[perturbseq$cell_anno == "unclassified2"] <- "mNC_hox34"
+saveRDS(perturbseq@meta.data,"perturb_seq/analysis/clustering/output_p1top11/seuMetadata_NC_clustered_leiden_res1.rds")
+```
+
+## Read meld likelihood
+
+```{r}
+panel <- unique(seu_merged$sgRNA_group)
+panel <- panel[!panel %in% c("multiplet", "negative", "control")]
+panel <- na.omit(panel)
+```
+
+```{r}
+figdir <- '~/projects_ox/perturb_seq/analysis/differential_analysis/figures/meld_calculateLikelihood/'
+dat_lst <- list()
+for(itor in panel){
+  dat_lst[[itor]] <- read.csv(paste0(figdir,"likelihood_",itor,".csv"), row.names = 1)
+  dat_lst[[itor]]$gene <- itor
+  dat_lst[[itor]]$likelihood_mean <- apply(dat_lst[[itor]][,3:4],1,mean)
+}
+```
+
+# visualise
+
+```{r}
+plist1 <-  list()
+rls_list <- list()
+for(itor in panel){
+  gene <- itor
+  ps_small <- perturbseq[,rownames(dat_lst[[gene]])]
+  ps_small$likelihood <- NA
+  ps_small$likelihood[match(rownames(dat_lst[[gene]]), colnames(ps_small))] <- as.numeric(dat_lst[[gene]]$likelihood_mean)
+  
+  plist1[[itor]] <- FeaturePlot(ps_small, features = "likelihood", reduction = "phate", pt.size = 3) & 
+    scale_color_gradientn(
+      colours = c(muted("red"), "white", muted("blue")),
+      values = rescale(c(min(ps_small$likelihood),median(ps_small$likelihood),max(ps_small$likelihood))),
+      guide = "colorbar", limits=c(min(ps_small$likelihood),max(ps_small$likelihood))
+    )    
+  plist1[[itor]] <- AugmentPlot(plist1[[itor]])+ ggtitle(itor)
+  
+  # dichotomised to early vs late
+  df_data <- data.frame(cell_anno=ps_small$cell_anno, 
+                        latent_time_imputed=ps_small$latent_time_imputed, 
+                        likelihood=ps_small$likelihood)
+  # Group by cell_anno, and split into early and late based on the median latent_time_imputed
+  df_data$group <- NA
+  for(itor2 in unique(df_data$cell_anno)){
+    idx <- df_data$cell_anno == itor2
+    time_median <- median(df_data$latent_time_imputed[idx], na.rm = TRUE)
+    df_data$group[idx][df_data$latent_time_imputed[idx] >= time_median] <- "late"
+    df_data$group[idx][df_data$latent_time_imputed[idx] < time_median] <- "early"
+  }
+  rls_list[[itor]] <- df_data
+
+}
+```
+
+```{r}
+library(dplyr)
+result <- list()
+for(i in 1:length(rls_list)){
+  result[[i]] <- rls_list[[i]] %>%
+  filter(group == "late") %>%
+  group_by(cell_anno) %>%
+  summarise(median_likelihood = median(likelihood, na.rm = TRUE))
+  result[[i]]$sgRNA_group <- names(rls_list )[i]
+}
+df_median <- do.call( rbind, result)
+write.csv(df_median , "perturb_seq/analysis/differential_analysis/data/meld/df_median_meld_likelihood.csv", row.names = FALSE)
+```
+
+
+## tSNE plots
+
+```{r}
+plist1[[1]]
+```
+
+```{r, fig.width=12, fig.height=14}
+plot_grid(plotlist = plist1, ncol = 4)
+          # label_size = 15, 
+          # labels = panel) # Modify labels as needed
+```
+
+```{r, fig.width=10, fig.height=4}
+p1 <- FeaturePlot(perturbseq, reduction = "phate",features = "latent_time_imputed")& 
+  scale_color_viridis(option="magma")
+p2 <- DimPlot(perturbseq, reduction = "phate",group.by = "term_state_imputed", cells.highlight = colnames(perturbseq)[!is.na(perturbseq$term_state_imputed)])
+cowplot::plot_grid(p1, p2)
+```
+
+# save data
+
+```{r}
+saveRDS(perturbseq@meta.data, "perturb_seq/analysis/differential_analysis/data/metadata/perturbseq_filtered_metadata_latentTime_likelihood.rds")
+saveRDS(rls_list, "perturb_seq/analysis/differential_analysis/data/meld/dichotomised_rlslist_rpca.rds")
+```
+
+
+## Technical
+
+```{r}
+sessionInfo()
+```
+

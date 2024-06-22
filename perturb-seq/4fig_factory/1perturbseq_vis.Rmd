@@ -1,0 +1,209 @@
+---
+title: "visualisation - perturb-seq"
+date: "2024-01-22 (last modified: `r Sys.Date()`)"
+output:
+  prettydoc::html_pretty:
+    theme: architect
+    highlight: github
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+library(pheatmap)
+library(Seurat)
+library(ggplot2)
+library(cowplot)
+figdir <- "perturb_seq/analysis/fig_factory/figures/1diff_abundance/"
+col.ls <- c(ArchR::ArchRPalettes$stallion, ArchR::ArchRPalettes$bear) # archR color palettes
+names(col.ls) <- NULL
+```
+
+
+## heatmap
+
+```{r}
+selected_lin <-c("mNC_head_mesenchymal","mNC_arch1","mNC_arch2","mNC_hox34","mNC_vagal","mNC_trunk","Pigment","Pigment_1","Pigment_gch2_high","unclassified1","dNC_nohox","Mutant","Mutant_hox23")
+df_median <- read.csv("perturb_seq/analysis/differential_analysis/data/meld/df_median_meld_likelihood.csv")
+df_plot <- reshape(df_median, idvar = c("cell_anno"), timevar = "sgRNA_group", direction = "wide")
+rownames(df_plot) <- df_plot$cell_anno
+df_plot <- df_plot[,-1]
+df_plot <- as.matrix(df_plot)
+colnames(df_plot) <- gsub("median_likelihood.","",colnames(df_plot))
+df_plot <- df_plot[rownames(df_plot) %in% selected_lin,]
+```
+
+```{r, fig.width=12, fig.height=6}
+breaks1 <- seq(0.2, 0.8, length.out = 200)
+
+pheatmap(t(df_plot), name = "mat2", 
+    col = colorRampPalette(c("navy", "white", "firebrick3"))(200), breaks = breaks1, angle_col = 45, filename = "perturb_seq/analysis/fig_factory/figures/1diff_abundance/ko_effects_pheatmap.pdf",width =8, height = 8)
+```
+
+# QC
+
+```{r}
+perturbseq <- readRDS("perturb_seq/analysis/clustering/output_p1top11/seu_NC_clustered.rds")
+perturbseq <- perturbseq[,!perturbseq$seurat_clusters %in% c('1', '2', '3', '8', '11', '16','17')]
+```
+
+```{r, fig.width=8, fig.height=5}
+VlnPlot(perturbseq[ , !perturbseq$sgRNA_group %in% c("multiplet","negative")], c("nFeature_RNA"), group.by = "sgRNA_group", pt.size = 0, cols = rep("grey",23)) + NoLegend()
+ggsave( "perturb_seq/analysis/fig_factory/figures/1diff_abundance/nFeature_bysgRNA_vlnplot_QC.pdf", width =8, height = 4)
+```
+
+# Density plot
+
+```{r}
+phate_data <- read.csv("perturb_seq/analysis/differential_analysis/data/phate_coordinates.csv", row.names = 1)
+head(phate_data)
+```
+
+```{r}
+perturbseq@reductions[["phate"]] <- CreateDimReducObject(as.matrix(phate_data)*100, key = "phate")
+```
+
+## elf1 vs control
+
+```{r}
+seu_small <- perturbseq[,perturbseq$sgRNA_group %in% c("control","elf1")]
+# Count the number of cells in each group
+control_count <- sum(seu_small$sgRNA_group == "control")
+gene1_count <- sum(seu_small$sgRNA_group == "elf1")
+
+# Determine the smaller size
+min_size <- min(control_count, gene1_count)
+
+# Randomly sample min_size cells from each group
+set.seed(123)  # for reproducibility
+control_cells <- sample(colnames(seu_small[, seu_small$sgRNA_group == "control"]), min_size)
+gene1_cells <- sample(colnames(seu_small[, seu_small$sgRNA_group == "elf1"]), min_size)
+
+# Combine the sampled cells
+sampled_cells <- c(control_cells, gene1_cells)
+seu_sampled <- seu_small[, sampled_cells]
+```
+
+
+```{r, fig.width=12, fig.height=5}
+# Bin size control + color palette
+plist <- list()
+panel <- unique(seu_sampled$sgRNA_group)#[!unique(seu$sgRNA_group) %in% c("negative","multiplet")]
+df_umap <- seu_sampled@reductions[["phate"]]@cell.embeddings
+for(i in 1:length(panel)){
+  plist[[i]] <- ggplot(data.frame(df_umap[seu_sampled$sgRNA_group == panel[i],]), aes(x=phate_1, y=phate_2) )+ geom_point(color = "grey60") +
+ stat_density_2d(geom = "polygon", contour = TRUE,
+                  aes(fill = after_stat(level)), colour = "black", alpha = 0.4,
+                  bins = 10)+
+  scale_fill_distiller(palette = "Blues", direction = 1)  + labs(title = panel[i]) + theme_minimal() + xlim(-3.4,  6.8) + ylim(-4.7, 4)
+} 
+cowplot::plot_grid(plotlist = plist, ncol = 2)
+ggsave(paste0(figdir, "2dkde_controlVSelf1.pdf"), height = 4, width = 9)
+```
+
+## tfec vs control
+
+```{r}
+seu_small <- perturbseq[,perturbseq$sgRNA_group %in% c("control","tfec")]
+# Count the number of cells in each group
+control_count <- sum(seu_small$sgRNA_group == "control")
+gene1_count <- sum(seu_small$sgRNA_group == "tfec")
+
+# Determine the smaller size
+min_size <- min(control_count, gene1_count)
+
+# Randomly sample min_size cells from each group
+set.seed(123)  # for reproducibility
+control_cells <- sample(colnames(seu_small[, seu_small$sgRNA_group == "control"]), min_size)
+gene1_cells <- sample(colnames(seu_small[, seu_small$sgRNA_group == "tfec"]), min_size)
+
+# Combine the sampled cells
+sampled_cells <- c(control_cells, gene1_cells)
+seu_sampled <- seu_small[, sampled_cells]
+```
+
+
+```{r, fig.width=12, fig.height=5}
+# Bin size control + color palette
+plist <- list()
+panel <- unique(seu_sampled$sgRNA_group)#[!unique(seu$sgRNA_group) %in% c("negative","multiplet")]
+df_umap <- seu_sampled@reductions[["phate"]]@cell.embeddings
+for(i in 1:length(panel)){
+  plist[[i]] <- ggplot(data.frame(df_umap[seu_sampled$sgRNA_group == panel[i],]), aes(x=phate_1, y=phate_2) )+ geom_point(color = "grey60") +
+ stat_density_2d(geom = "polygon", contour = TRUE,
+                  aes(fill = after_stat(level)), colour = "black", alpha = 0.4,
+                  bins = 10)+
+  scale_fill_distiller(palette = "Blues", direction = 1)  + labs(title = panel[i]) + theme_minimal() + xlim(-3.4,  6.8) + ylim(-4.7, 4)
+} 
+cowplot::plot_grid(plotlist = plist, ncol = 2)
+ggsave(paste0(figdir, "2dkde_controlVStfec.pdf"), height = 4, width = 9)
+```
+
+
+## mitfa vs control
+
+```{r}
+seu_small <- perturbseq[,perturbseq$sgRNA_group %in% c("control","mitfa")]
+
+# Randomly sample min_size cells from each group
+set.seed(123)  # for reproducibility
+control_cells <- sample(colnames(seu_small[, seu_small$sgRNA_group == "control"]), min_size)
+gene1_cells <- sample(colnames(seu_small[, seu_small$sgRNA_group == "mitfa"]), min_size)
+
+# Combine the sampled cells
+sampled_cells <- c(control_cells, gene1_cells)
+seu_sampled <- seu_small[, sampled_cells]
+```
+
+
+```{r, fig.width=12, fig.height=5}
+# Bin size control + color palette
+plist <- list()
+panel <- unique(seu_sampled$sgRNA_group)#[!unique(seu$sgRNA_group) %in% c("negative","multiplet")]
+df_umap <- seu_sampled@reductions[["phate"]]@cell.embeddings
+for(i in 1:length(panel)){
+  plist[[i]] <- ggplot(data.frame(df_umap[seu_sampled$sgRNA_group == panel[i],]), aes(x=phate_1, y=phate_2) )+ geom_point(color = "grey60") +
+ stat_density_2d(geom = "polygon", contour = TRUE,
+                  aes(fill = after_stat(level)), colour = "black", alpha = 0.4,
+                  bins = 10)+
+  scale_fill_distiller(palette = "Blues", direction = 1)  + labs(title = panel[i]) + theme_minimal()+ xlim(-3.4,  6.8) + ylim(-4.7, 4)
+} 
+cowplot::plot_grid(plotlist = plist, ncol = 2)
+ggsave(paste0(figdir, "2dkde_controlVSmitfa.pdf"), height = 4, width = 9)
+```
+
+
+
+## mitfa_tfec vs control
+
+```{r}
+seu_small <- perturbseq[,perturbseq$sgRNA_group %in% c("control","mitfa_tfec")]
+
+# Randomly sample min_size cells from each group
+set.seed(123)  # for reproducibility
+control_cells <- sample(colnames(seu_small[, seu_small$sgRNA_group == "control"]), min_size)
+gene1_cells <- sample(colnames(seu_small[, seu_small$sgRNA_group == "mitfa_tfec"]), min_size)
+
+# Combine the sampled cells
+sampled_cells <- c(control_cells, gene1_cells)
+seu_sampled <- seu_small[, sampled_cells]
+```
+
+
+```{r, fig.width=12, fig.height=5}
+# Bin size control + color palette
+plist <- list()
+panel <- unique(seu_sampled$sgRNA_group)#[!unique(seu$sgRNA_group) %in% c("negative","multiplet")]
+df_umap <- seu_sampled@reductions[["phate"]]@cell.embeddings
+for(i in 1:length(panel)){
+  plist[[i]] <- ggplot(data.frame(df_umap[seu_sampled$sgRNA_group == panel[i],]), aes(x=phate_1, y=phate_2) )+ geom_point(color = "grey60") +
+ stat_density_2d(geom = "polygon", contour = TRUE,
+                  aes(fill = after_stat(level)), colour = "black", alpha = 0.4,
+                  bins = 10)+
+  scale_fill_distiller(palette = "Blues", direction = 1)  + labs(title = panel[i]) + theme_minimal()+ xlim(-3.4,  6.8) + ylim(-4.7, 4)
+} 
+cowplot::plot_grid(plotlist = plist, ncol = 2)
+ggsave(paste0(figdir, "2dkde_controlVSmitfa_tfec.pdf"), height = 4, width = 9)
+```
+```{r}
+perturbseq@meta.data <- readRDS("~/projects_ox/perturb_seq/analysis/differential_analysis/data/metadata/perturbseq_filtered_metadata_latentTime_likelihood.rds")
+```

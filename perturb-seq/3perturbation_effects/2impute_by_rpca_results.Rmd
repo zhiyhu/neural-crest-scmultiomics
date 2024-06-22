@@ -1,0 +1,240 @@
+---
+title: "Impute latent time by rpca"
+date: "2023-11-24 (last modified: `r Sys.Date()`)"
+output:
+  prettydoc::html_pretty:
+    theme: architect
+    highlight: github
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+library(Seurat)
+# library(patchwork)
+library(ggplot2)
+library(viridis)
+library(dplyr)
+library(scales)
+library(cowplot)
+```
+
+Run this script first: ~/projects_ox/perturb_seq/analysis/integration/code/rpca_perturbseq_multiomeNCwt.R
+
+# read perturb-seq data
+
+```{r}
+perturbseq <- readRDS("perturb_seq/analysis/clustering/output_p1top11/seu_NC_clustered.rds")
+perturbseq <- perturbseq[,!perturbseq$seurat_clusters %in% c('1', '2', '3', '8', '11', '16','17')]
+```
+
+```{r}
+multiome <- readRDS("multiome/analysis_newref/clustering/rds/seuobj_rna/seu_RNAsoupx_NC.rds")
+multiome@meta.data <- readRDS("multiome/analysis_newref/clustering/rds/metadata/seu_RNAsoupx_NC_metadata.rds")
+```
+
+# read cellrank2 multiome results
+
+```{r}
+df_cr2 <- arrow::read_parquet('multiome/analysis_newref/cellrank2/data/multiomeNCwt_metadata_latenttime.parquet')
+df_cr2
+```
+
+```{r}
+multiome <- multiome[,colnames(multiome) %in% df_cr2$index]
+all(colnames(multiome) == df_cr2$index)
+```
+
+```{r}
+multiome@meta.data <- cbind(multiome@meta.data,df_cr2[-1])
+```
+
+```{r}
+FeaturePlot(multiome, reduction = "tsne",features = "latent_time") & 
+  scale_color_viridis(option="magma")
+```
+
+```{r}
+DimPlot(multiome, reduction = "tsne",group.by ="term_states_fwd" ,pt.size=0.1, na.value="grey90") 
+```
+
+# merge perturb-seq and multiome
+
+```{r}
+perturbseq$batch <- "perturbseq"
+multiome$batch <- "multiome"
+seu_merged <- merge(perturbseq, multiome)
+```
+
+## add integrated pc
+
+```{r}
+dat_rpca <- readRDS(paste0("perturb_seq/analysis/integration/data/", "integrated/multiome_NCwt_perturbseq123_rpca_pca.rds"))
+df_rpca <- dat_rpca@cell.embeddings
+df_rpca <- df_rpca[match(colnames(seu_merged), rownames(df_rpca)),]
+```
+
+```{r}
+seu_merged@reductions$rpca <- CreateDimReducObject(df_rpca)
+seu_merged <- RunTSNE(seu_merged, reduction = "rpca", dims = 1:30)
+```
+
+```{r, fig.width=12, fig.height=10}
+DimPlot(seu_merged, reduction  = "tsne",group.by = "cell_type" , label = T, repel = T)
+```
+
+```{r}
+DimPlot(seu_merged, reduction  = "tsne",group.by = "term_states_fwd")
+```
+
+# impute values based on PCA matrix
+
+```{r}
+# Extract the PCA matrix
+seu_merged <- FindNeighbors(seu_merged,reduction = "rpca", dims = 1:30)  # You can adjust the dims
+```
+
+## extract SNN
+
+```{r extract-SNN}
+library(igraph)
+# Extract the SNN graph
+snn_graph <- seu_merged[['RNA_snn']]
+snn_igraph <- graph_from_adjacency_matrix(snn_graph, mode = "undirected", weighted = TRUE)
+# Get indices of cells from the batch without latent time
+batch_without_latent_time_indices <- WhichCells(seu_merged, expression = batch == 'perturbseq')
+
+# Initialize a vector to store imputed values
+imputed_latent_times <- numeric(length(batch_without_latent_time_indices))
+imputed_term_states <- numeric(length(batch_without_latent_time_indices))
+
+seu_merged$term_states_fwd2 <- seu_merged$term_states_fwd
+seu_merged$term_states_fwd2[is.na(seu_merged$term_states_fwd2)] <- "no_term"
+
+Mode <- function(x) {
+  ux <- unique(x)
+  ux[which.max(tabulate(match(x, ux)))]
+}
+
+# Loop through cells to impute latent time
+for (i in seq_along(batch_without_latent_time_indices)) {
+    cell <- batch_without_latent_time_indices[i]
+
+    # Find neighbors in the SNN graph
+    neighbors <- neighbors(snn_igraph, v = cell)
+    # Filter neighbors to only those in the batch with latent time
+    neighbors_with_latent_time <- neighbors[seu_merged@meta.data[neighbors, "batch"] == 'multiome']
+
+    # Impute the average latent time from these neighbors
+    imputed_latent_times[i] <- mean(seu_merged@meta.data[neighbors_with_latent_time, 'latent_time'], na.rm = TRUE)
+    
+    # Determine the most frequent term state among these neighbors
+    # If there are no neighbors with term states, or all are NA, the value will be NA
+    most_frequent_term_state <- Mode(seu_merged@meta.data[neighbors_with_latent_time, 'term_states_fwd'])
+
+    # Store the most frequent term state
+    imputed_term_states[i] <- most_frequent_term_state
+}
+
+# Add the imputed latent times to the Seurat object
+seu_merged@meta.data[batch_without_latent_time_indices, 'latent_time_imputed'] <- imputed_latent_times
+
+# Add the imputed term states to the Seurat object
+seu_merged@meta.data[batch_without_latent_time_indices, 'term_states_imputed'] <- imputed_term_states
+
+# Loop through cells to impute latent time # impute agan
+for (i in seq_along(batch_without_latent_time_indices)) {
+    cell <- batch_without_latent_time_indices[i]
+    if(is.na(imputed_latent_times[i])){
+      # Find neighbors in the SNN graph
+      neighbors <- neighbors(snn_igraph, v = cell)
+      # Filter neighbors to only those in the batch with latent time
+      neighbors_with_latent_time <- neighbors[!is.na(seu_merged@meta.data[neighbors, "latent_time_imputed"])]
+      
+      # Impute the average latent time from these neighbors
+      imputed_latent_times[i] <- mean(seu_merged@meta.data[neighbors_with_latent_time, 'latent_time_imputed'], na.rm = TRUE)
+    }
+
+}
+seu_merged@meta.data[batch_without_latent_time_indices, 'latent_time_imputed'] <- imputed_latent_times
+
+# Loop through cells to impute latent time # impute agan
+for (i in seq_along(batch_without_latent_time_indices)) {
+    cell <- batch_without_latent_time_indices[i]
+    if(is.na(imputed_latent_times[i])){
+      # Find neighbors in the SNN graph
+      neighbors <- neighbors(snn_igraph, v = cell)
+      # Filter neighbors to only those in the batch with latent time
+      neighbors_with_latent_time <- neighbors[!is.na(seu_merged@meta.data[neighbors, "latent_time_imputed"])]
+      
+      # Impute the average latent time from these neighbors
+      imputed_latent_times[i] <- mean(seu_merged@meta.data[neighbors_with_latent_time, 'latent_time_imputed'], na.rm = TRUE)
+    }
+}
+seu_merged@meta.data[batch_without_latent_time_indices, 'latent_time_imputed'] <- imputed_latent_times
+```
+
+## plot imputed and original latent time
+
+```{r, fig.width=12, fig.height=4}
+p1 <- FeaturePlot(seu_merged, reduction  = "tsne",features = "latent_time_imputed") & 
+  scale_color_viridis(option="magma")
+p2 <- FeaturePlot(seu_merged, reduction  = "tsne",features = "latent_time") & 
+  scale_color_viridis(option="magma")
+cowplot::plot_grid(p1, p2, ncol = 2)
+```
+
+## plot imputed and original terminal states
+
+
+```{r, fig.width=12, fig.height=4}
+p1 <- DimPlot(seu_merged, reduction  = "tsne", group.by =   "term_states_imputed") 
+p2 <- DimPlot(seu_merged, reduction  = "tsne", group.by =   "term_states_fwd")
+cowplot::plot_grid(p1, p2, ncol = 2)
+```
+
+```{r, fig.width=12, fig.height=5}
+df_umap <- seu_merged@reductions$tsne@cell.embeddings[!is.na(seu_merged$sgRNA_group),]
+```
+
+
+
+```{r, fig.width=12, fig.height=18}
+# Bin size control + color palette
+plist <- list()
+panel <- unique(seu_merged$sgRNA_group[!is.na(seu_merged$sgRNA_group)])
+
+for(i in 1:length(panel)){
+  plist[[i]] <- ggplot(data.frame(df_umap[seu_merged$sgRNA_group[!is.na(seu_merged$sgRNA_group)] == panel[i],]), aes(x=tSNE_1, y=tSNE_2) )+ #geom_point() +
+    geom_density_2d_filled() + labs(title = panel[i]) + theme_minimal()
+} 
+cowplot::plot_grid(plotlist = plist, ncol = 3)
+
+```
+
+```{r}
+perturbseq$latent_time_imputed <- seu_merged$latent_time_imputed[match(colnames(perturbseq), colnames(seu_merged))]
+perturbseq$term_state_imputed <- seu_merged$term_states_imputed[match(colnames(perturbseq), colnames(seu_merged))]
+```
+
+
+
+```{r, fig.width=18, fig.height=5}
+p1 <- FeaturePlot(perturbseq, reduction = "tsne", features = "latent_time_imputed")& 
+  scale_color_viridis(option="magma")
+p2 <- DimPlot(perturbseq, reduction = "tsne", group.by = "term_state_imputed", pt.size = 0.2)
+p3 <- DimPlot(perturbseq, reduction = "tsne", group.by = "cell_anno", label = T, repel = T) + NoLegend()
+plot_grid(p1, p2, p3, ncol = 3)
+```
+
+# save data
+
+```{r}
+saveRDS(seu_merged, "../data/integrated/rpca_perturbseq_multiome_latentTime.rds")
+```
+
+# Technical
+
+```{r}
+sessionInfo()
+```
+

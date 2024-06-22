@@ -1,0 +1,617 @@
+---
+title: "DoubletFinder to remove doublets in perturb-seq data"
+author: "Zhiyuan Hu"
+date: '2023-09-02 (last modified: `r Sys.Date()`)'
+output:
+  prettydoc::html_pretty:
+    theme: architect
+    highlight: github
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+library(dplyr)
+library(Seurat)
+# library(patchwork)
+library(RColorBrewer)
+library(scales)
+library(DoubletFinder)
+stage_cols <- RColorBrewer::brewer.pal("Spectral", n = 11)
+genotype_cols <- RColorBrewer::brewer.pal("Set2", n = 8)[c(1,2,3,8)]
+sample_cols <- RColorBrewer::brewer.pal("Accent", n = 8)
+doublet_cols <- RColorBrewer::brewer.pal("Paired", n = 8)[c(6,8,2)]
+```
+
+# Read data
+
+```{r}
+seu <- readRDS("perturb_seq/analysis/clustering/output_p1top11/seu_all_clustered.rds")
+table(seu$sample)
+```
+
+# Doublet filter
+
+Refer to this https://www.epfl.ch/research/facilities/gene-expression-core-facility/wp-content/uploads/2021/04/Multiome-10XG-samples-preparation-guidelines-by-GECF-vA.01.pdf
+
+```{r}
+doublet_rates <- c(0.02, 0.016, 0.039,0.008,0.012,0.014,0.032,0.02,0.02)
+names(doublet_rates) <- c("p1","p2","p3","p5","p6","p8","p9","p10","p11")
+```
+
+## p1
+
+```{r}
+sample_itor <- "p1"
+seu_1 <- seu[,seu$sample == sample_itor]
+
+## Pre-process Seurat object (standard) --------------------------------------------------------------------------------------
+seu_1 <- NormalizeData(seu_1)
+seu_1 <- FindVariableFeatures(seu_1, selection.method = "vst", nfeatures = 2000)
+seu_1 <- ScaleData(seu_1)
+seu_1 <- RunPCA(seu_1)
+seu_1 <- RunTSNE(seu_1, dims = 1:20)
+seu_1 <- FindNeighbors(object = seu_1, reduction = "pca", dims = 1:20, verbose = TRUE)
+seu_1 <- FindClusters(seu_1, dims = 1:20, resolution = 0.6)
+## pK Identification (no ground-truth) ---------------------------------------------------------------------------------------
+sweep.res.list <- paramSweep_v3(seu_1, PCs = 1:20, sct = FALSE)
+sweep.stats <- summarizeSweep(sweep.res.list, GT = FALSE)
+bcmvn <- find.pK(sweep.stats)
+bcmvn
+
+## Homotypic Doublet Proportion Estimate -------------------------------------------------------------------------------------
+annotations <- seu_1@meta.data$seurat_clusters
+homotypic.prop <- modelHomotypic(annotations)           ## ex: annotations <- seu@meta.data$ClusteringResults
+nExp_poi <- round(doublet_rates[sample_itor]*nrow(seu_1@meta.data))  ## Assuming 7.5% doublet formation rate - tailor for your dataset
+nExp_poi.adj <- round(nExp_poi*(1-homotypic.prop))
+
+## Run DoubletFinder with varying classification stringencies ----------------------------------------------------------------
+seu_1 <- doubletFinder_v3(seu_1, PCs = 1:20, pN = 0.25, pK = 0.005, nExp = nExp_poi, reuse.pANN = FALSE, sct = FALSE)
+seu_1 <- doubletFinder_v3(seu_1, PCs = 1:20, pN = 0.25, pK = 0.005, nExp = nExp_poi.adj, reuse.pANN = FALSE, sct = FALSE)
+
+seu_1 <- doubletFinder_v3(seu_1, PCs = 1:20, pN = 0.25, pK = 0.02, nExp = nExp_poi, reuse.pANN = FALSE, sct = FALSE)
+seu_1 <- doubletFinder_v3(seu_1, PCs = 1:20, pN = 0.25, pK = 0.02, nExp = nExp_poi.adj, reuse.pANN = FALSE, sct = FALSE)
+
+## Assign classification
+seu_1$DoubletFinder <- "Singlet"
+seu_1$DoubletFinder[seu_1$DF.classifications_0.25_0.005_66 == "Doublet"] <- "Doublet (high likelyhood)"
+seu_1$DoubletFinder[seu_1$DF.classifications_0.25_0.005_66 != "Doublet" &
+                    seu_1$DF.classifications_0.25_0.005_71 == "Doublet"] <- "Doublet (low likelyhood)"
+
+## Assign classification
+seu_1$DoubletFinder_pK <- "Singlet"
+seu_1$DoubletFinder_pK[seu_1$DF.classifications_0.25_0.02_66 == "Doublet"] <- "Doublet (high likelyhood)"
+seu_1$DoubletFinder_pK[seu_1$DF.classifications_0.25_0.02_66 != "Doublet" &
+                          seu_1$DF.classifications_0.25_0.02_71 == "Doublet"] <- "Doublet (low likelyhood)"
+```
+
+We are viewing two pK values due to this potential issue https://github.com/chris-mcginnis-ucsf/DoubletFinder/issues/130
+
+```{r, fig.width=12, fig.height=4}
+p1 <- DimPlot(seu_1, group.by = "DoubletFinder")
+p2 <- DimPlot(seu_1, group.by = "DoubletFinder_pK")
+p1 + p2
+```
+
+```{r, fig.width=12, fig.height=4}
+p1 <- VlnPlot(seu_1, features = c("nFeature_RNA"), group.by = "DoubletFinder" , pt.size =  0.01)
+p2 <- VlnPlot(seu_1, features = c("nFeature_RNA"), group.by = "DoubletFinder_pK", pt.size =  0.01)
+cowplot::plot_grid(p1, p2, ncol = 2)
+```
+
+```{r}
+seu$DoubletFinder <- NA
+seu$DoubletFinder[match(colnames(seu_1), colnames(seu))] <- seu_1$DoubletFinder
+```
+
+
+## p2
+
+
+```{r}
+sample_itor <- "p2"
+seu_1 <- seu[,seu$sample == sample_itor]
+
+## Pre-process Seurat object (standard) --------------------------------------------------------------------------------------
+seu_1 <- NormalizeData(seu_1)
+seu_1 <- FindVariableFeatures(seu_1, selection.method = "vst", nfeatures = 2000)
+seu_1 <- ScaleData(seu_1)
+seu_1 <- RunPCA(seu_1)
+seu_1 <- RunTSNE(seu_1, dims = 1:20)
+seu_1 <- FindNeighbors(object = seu_1, reduction = "pca", dims = 1:20, verbose = TRUE)
+seu_1 <- FindClusters(seu_1, dims = 1:20, resolution = 0.6)
+## pK Identification (no ground-truth) ---------------------------------------------------------------------------------------
+sweep.res.list <- paramSweep_v3(seu_1, PCs = 1:20, sct = FALSE)
+sweep.stats <- summarizeSweep(sweep.res.list, GT = FALSE)
+bcmvn <- find.pK(sweep.stats)
+bcmvn
+
+## Homotypic Doublet Proportion Estimate -------------------------------------------------------------------------------------
+annotations <- seu_1@meta.data$seurat_clusters
+homotypic.prop <- modelHomotypic(annotations)           ## ex: annotations <- seu@meta.data$ClusteringResults
+nExp_poi <- round(doublet_rates[sample_itor]*nrow(seu_1@meta.data))  ## Assuming 7.5% doublet formation rate - tailor for your dataset
+nExp_poi.adj <- round(nExp_poi*(1-homotypic.prop))
+
+## Run DoubletFinder with varying classification stringencies ----------------------------------------------------------------
+seu_1 <- doubletFinder_v3(seu_1, PCs = 1:20, pN = 0.25, pK = 0.005, nExp = nExp_poi, reuse.pANN = FALSE, sct = FALSE)
+seu_1 <- doubletFinder_v3(seu_1, PCs = 1:20, pN = 0.25, pK = 0.005, nExp = nExp_poi.adj, reuse.pANN = FALSE, sct = FALSE)
+
+seu_1 <- doubletFinder_v3(seu_1, PCs = 1:20, pN = 0.25, pK = 0.07, nExp = nExp_poi, reuse.pANN = FALSE, sct = FALSE)
+seu_1 <- doubletFinder_v3(seu_1, PCs = 1:20, pN = 0.25, pK = 0.07, nExp = nExp_poi.adj, reuse.pANN = FALSE, sct = FALSE)
+
+seu_1 <- doubletFinder_v3(seu_1, PCs = 1:20, pN = 0.25, pK = 0.17, nExp = nExp_poi, reuse.pANN = FALSE, sct = FALSE)
+seu_1 <- doubletFinder_v3(seu_1, PCs = 1:20, pN = 0.25, pK = 0.17, nExp = nExp_poi.adj, reuse.pANN = FALSE, sct = FALSE)
+
+## Assign classification
+seu_1$DoubletFinder <- "Singlet"
+seu_1$DoubletFinder[seu_1$DF.classifications_0.25_0.005_44 == "Doublet"] <- "Doublet (high likelyhood)"
+seu_1$DoubletFinder[seu_1$DF.classifications_0.25_0.005_44 != "Doublet" &
+                    seu_1$DF.classifications_0.25_0.005_48 == "Doublet"] <- "Doublet (low likelyhood)"
+
+## Assign classification
+seu_1$DoubletFinder_pK <- "Singlet"
+seu_1$DoubletFinder_pK[seu_1$DF.classifications_0.25_0.07_44 == "Doublet"] <- "Doublet (high likelyhood)"
+seu_1$DoubletFinder_pK[seu_1$DF.classifications_0.25_0.07_44 != "Doublet" &
+                          seu_1$DF.classifications_0.25_0.07_48 == "Doublet"] <- "Doublet (low likelyhood)"
+
+## Assign classification
+seu_1$DoubletFinder_pK2 <- "Singlet"
+seu_1$DoubletFinder_pK2[seu_1$DF.classifications_0.25_0.17_44 == "Doublet"] <- "Doublet (high likelyhood)"
+seu_1$DoubletFinder_pK2[seu_1$DF.classifications_0.25_0.17_44 != "Doublet" &
+                          seu_1$DF.classifications_0.25_0.17_48 == "Doublet"] <- "Doublet (low likelyhood)"
+```
+
+We are viewing two pK values due to this potential issue https://github.com/chris-mcginnis-ucsf/DoubletFinder/issues/130
+
+```{r, fig.width=18, fig.height=4}
+p1 <- DimPlot(seu_1, group.by = "DoubletFinder")
+p2 <- DimPlot(seu_1, group.by = "DoubletFinder_pK")
+p3 <- DimPlot(seu_1, group.by = "DoubletFinder_pK2")
+p1 + p2 + p3
+```
+
+```{r, fig.width=18, fig.height=4}
+p1 <- VlnPlot(seu_1, features = c("nFeature_RNA"), group.by = "DoubletFinder" , pt.size =  0.01)
+p2 <- VlnPlot(seu_1, features = c("nFeature_RNA"), group.by = "DoubletFinder_pK", pt.size =  0.01)
+p3 <- VlnPlot(seu_1, features = c("nFeature_RNA"), group.by = "DoubletFinder_pK2", pt.size =  0.01)
+cowplot::plot_grid(p1, p2, p3, ncol = 3)
+```
+
+```{r}
+seu$DoubletFinder[match(colnames(seu_1), colnames(seu))] <- seu_1$DoubletFinder
+```
+
+
+## p3
+
+```{r}
+sample_itor <- "p3"
+seu_1 <- seu[,seu$sample == sample_itor]
+
+## Pre-process Seurat object (standard) --------------------------------------------------------------------------------------
+seu_1 <- NormalizeData(seu_1)
+seu_1 <- FindVariableFeatures(seu_1, selection.method = "vst", nfeatures = 2000)
+seu_1 <- ScaleData(seu_1)
+seu_1 <- RunPCA(seu_1)
+seu_1 <- RunTSNE(seu_1, dims = 1:20)
+seu_1 <- FindNeighbors(object = seu_1, reduction = "pca", dims = 1:20, verbose = TRUE)
+seu_1 <- FindClusters(seu_1, dims = 1:20, resolution = 0.6)
+## pK Identification (no ground-truth) ---------------------------------------------------------------------------------------
+sweep.res.list <- paramSweep_v3(seu_1, PCs = 1:20, sct = FALSE)
+sweep.stats <- summarizeSweep(sweep.res.list, GT = FALSE)
+bcmvn <- find.pK(sweep.stats)
+bcmvn
+
+## Homotypic Doublet Proportion Estimate -------------------------------------------------------------------------------------
+annotations <- seu_1@meta.data$seurat_clusters
+homotypic.prop <- modelHomotypic(annotations)           ## ex: annotations <- seu@meta.data$ClusteringResults
+nExp_poi <- round(doublet_rates[sample_itor]*nrow(seu_1@meta.data))  ## Assuming 7.5% doublet formation rate - tailor for your dataset
+nExp_poi.adj <- round(nExp_poi*(1-homotypic.prop))
+
+## Run DoubletFinder with varying classification stringencies ----------------------------------------------------------------
+seu_1 <- doubletFinder_v3(seu_1, PCs = 1:20, pN = 0.25, pK = 0.005, nExp = nExp_poi, reuse.pANN = FALSE, sct = FALSE)
+seu_1 <- doubletFinder_v3(seu_1, PCs = 1:20, pN = 0.25, pK = 0.005, nExp = nExp_poi.adj, reuse.pANN = FALSE, sct = FALSE)
+
+seu_1 <- doubletFinder_v3(seu_1, PCs = 1:20, pN = 0.25, pK = 0.28, nExp = nExp_poi, reuse.pANN = FALSE, sct = FALSE)
+seu_1 <- doubletFinder_v3(seu_1, PCs = 1:20, pN = 0.25, pK = 0.28, nExp = nExp_poi.adj, reuse.pANN = FALSE, sct = FALSE)
+
+## Assign classification
+seu_1$DoubletFinder <- "Singlet"
+seu_1$DoubletFinder[seu_1$DF.classifications_0.25_0.005_308 == "Doublet"] <- "Doublet (high likelyhood)"
+seu_1$DoubletFinder[seu_1$DF.classifications_0.25_0.005_308 != "Doublet" &
+                    seu_1$DF.classifications_0.25_0.005_333 == "Doublet"] <- "Doublet (low likelyhood)"
+
+## Assign classification
+seu_1$DoubletFinder_pK <- "Singlet"
+seu_1$DoubletFinder_pK[seu_1$DF.classifications_0.25_0.28_308 == "Doublet"] <- "Doublet (high likelyhood)"
+seu_1$DoubletFinder_pK[seu_1$DF.classifications_0.25_0.28_308 != "Doublet" &
+                          seu_1$DF.classifications_0.25_0.28_333 == "Doublet"] <- "Doublet (low likelyhood)"
+```
+
+We are viewing two pK values due to this potential issue https://github.com/chris-mcginnis-ucsf/DoubletFinder/issues/130
+
+```{r, fig.width=12, fig.height=4}
+p1 <- DimPlot(seu_1, group.by = "DoubletFinder")
+p2 <- DimPlot(seu_1, group.by = "DoubletFinder_pK")
+p1 + p2
+```
+
+```{r, fig.width=12, fig.height=4}
+p1 <- VlnPlot(seu_1, features = c("nFeature_RNA"), group.by = "DoubletFinder" , pt.size =  0.01)
+p2 <- VlnPlot(seu_1, features = c("nFeature_RNA"), group.by = "DoubletFinder_pK", pt.size =  0.01)
+cowplot::plot_grid(p1, p2, ncol = 2)
+```
+
+```{r}
+seu$DoubletFinder[match(colnames(seu_1), colnames(seu))] <- seu_1$DoubletFinder
+```
+
+## p5
+
+```{r}
+sample_itor <- "p5"
+seu_1 <- seu[,seu$sample == sample_itor]
+
+## Pre-process Seurat object (standard) --------------------------------------------------------------------------------------
+seu_1 <- NormalizeData(seu_1)
+seu_1 <- FindVariableFeatures(seu_1, selection.method = "vst", nfeatures = 2000)
+seu_1 <- ScaleData(seu_1)
+seu_1 <- RunPCA(seu_1)
+seu_1 <- RunTSNE(seu_1, dims = 1:20)
+seu_1 <- FindNeighbors(object = seu_1, reduction = "pca", dims = 1:20, verbose = TRUE)
+seu_1 <- FindClusters(seu_1, dims = 1:20, resolution = 0.6)
+## pK Identification (no ground-truth) ---------------------------------------------------------------------------------------
+sweep.res.list <- paramSweep_v3(seu_1, PCs = 1:20, sct = FALSE)
+sweep.stats <- summarizeSweep(sweep.res.list, GT = FALSE)
+bcmvn <- find.pK(sweep.stats)
+bcmvn
+
+## Homotypic Doublet Proportion Estimate -------------------------------------------------------------------------------------
+annotations <- seu_1@meta.data$seurat_clusters
+homotypic.prop <- modelHomotypic(annotations)           ## ex: annotations <- seu@meta.data$ClusteringResults
+nExp_poi <- round(doublet_rates[sample_itor]*nrow(seu_1@meta.data))  ## Assuming 7.5% doublet formation rate - tailor for your dataset
+nExp_poi.adj <- round(nExp_poi*(1-homotypic.prop))
+
+## Run DoubletFinder with varying classification stringencies ----------------------------------------------------------------
+seu_1 <- doubletFinder_v3(seu_1, PCs = 1:20, pN = 0.25, pK = 0.005, nExp = nExp_poi, reuse.pANN = FALSE, sct = FALSE)
+seu_1 <- doubletFinder_v3(seu_1, PCs = 1:20, pN = 0.25, pK = 0.005, nExp = nExp_poi.adj, reuse.pANN = FALSE, sct = FALSE)
+
+## Assign classification
+seu_1$DoubletFinder <- "Singlet"
+seu_1$DoubletFinder[seu_1$DF.classifications_0.25_0.005_12 == "Doublet"] <- "Doublet (high likelyhood)"
+seu_1$DoubletFinder[seu_1$DF.classifications_0.25_0.005_12 != "Doublet" &
+                    seu_1$DF.classifications_0.25_0.005_14 == "Doublet"] <- "Doublet (low likelyhood)"
+
+```
+
+We are viewing two pK values due to this potential issue https://github.com/chris-mcginnis-ucsf/DoubletFinder/issues/130
+
+```{r, fig.width=6, fig.height=4}
+p1 <- DimPlot(seu_1, group.by = "DoubletFinder")
+p1 
+```
+
+```{r, fig.width=6, fig.height=4}
+p1 <- VlnPlot(seu_1, features = c("nFeature_RNA"), group.by = "DoubletFinder" , pt.size =  0.01)
+p1
+```
+
+```{r}
+seu$DoubletFinder[match(colnames(seu_1), colnames(seu))] <- seu_1$DoubletFinder
+```
+
+## p6
+
+```{r}
+sample_itor <- "p6"
+seu_1 <- seu[,seu$sample == sample_itor]
+
+## Pre-process Seurat object (standard) --------------------------------------------------------------------------------------
+seu_1 <- NormalizeData(seu_1)
+seu_1 <- FindVariableFeatures(seu_1, selection.method = "vst", nfeatures = 2000)
+seu_1 <- ScaleData(seu_1)
+seu_1 <- RunPCA(seu_1)
+seu_1 <- RunTSNE(seu_1, dims = 1:20)
+seu_1 <- FindNeighbors(object = seu_1, reduction = "pca", dims = 1:20, verbose = TRUE)
+seu_1 <- FindClusters(seu_1, dims = 1:20, resolution = 0.6)
+## pK Identification (no ground-truth) ---------------------------------------------------------------------------------------
+sweep.res.list <- paramSweep_v3(seu_1, PCs = 1:20, sct = FALSE)
+sweep.stats <- summarizeSweep(sweep.res.list, GT = FALSE)
+bcmvn <- find.pK(sweep.stats)
+bcmvn
+
+## Homotypic Doublet Proportion Estimate -------------------------------------------------------------------------------------
+annotations <- seu_1@meta.data$seurat_clusters
+homotypic.prop <- modelHomotypic(annotations)           ## ex: annotations <- seu@meta.data$ClusteringResults
+nExp_poi <- round(doublet_rates[sample_itor]*nrow(seu_1@meta.data))  ## Assuming 7.5% doublet formation rate - tailor for your dataset
+nExp_poi.adj <- round(nExp_poi*(1-homotypic.prop))
+
+## Run DoubletFinder with varying classification stringencies ----------------------------------------------------------------
+seu_1 <- doubletFinder_v3(seu_1, PCs = 1:20, pN = 0.25, pK = 0.005, nExp = nExp_poi, reuse.pANN = FALSE, sct = FALSE)
+seu_1 <- doubletFinder_v3(seu_1, PCs = 1:20, pN = 0.25, pK = 0.005, nExp = nExp_poi.adj, reuse.pANN = FALSE, sct = FALSE)
+
+seu_1 <- doubletFinder_v3(seu_1, PCs = 1:20, pN = 0.25, pK = 0.02, nExp = nExp_poi, reuse.pANN = FALSE, sct = FALSE)
+seu_1 <- doubletFinder_v3(seu_1, PCs = 1:20, pN = 0.25, pK = 0.02, nExp = nExp_poi.adj, reuse.pANN = FALSE, sct = FALSE)
+
+## Assign classification
+seu_1$DoubletFinder <- "Singlet"
+seu_1$DoubletFinder[seu_1$DF.classifications_0.25_0.005_44 == "Doublet"] <- "Doublet (high likelyhood)"
+seu_1$DoubletFinder[seu_1$DF.classifications_0.25_0.005_44 != "Doublet" &
+                    seu_1$DF.classifications_0.25_0.005_48 == "Doublet"] <- "Doublet (low likelyhood)"
+
+## Assign classification
+seu_1$DoubletFinder_pK <- "Singlet"
+seu_1$DoubletFinder_pK[seu_1$DF.classifications_0.25_0.02_44 == "Doublet"] <- "Doublet (high likelyhood)"
+seu_1$DoubletFinder_pK[seu_1$DF.classifications_0.25_0.02_44 != "Doublet" &
+                          seu_1$DF.classifications_0.25_0.02_48 == "Doublet"] <- "Doublet (low likelyhood)"
+```
+
+We are viewing two pK values due to this potential issue https://github.com/chris-mcginnis-ucsf/DoubletFinder/issues/130
+
+```{r, fig.width=12, fig.height=4}
+p1 <- DimPlot(seu_1, group.by = "DoubletFinder")
+p2 <- DimPlot(seu_1, group.by = "DoubletFinder_pK")
+p1 + p2
+```
+
+```{r, fig.width=12, fig.height=4}
+p1 <- VlnPlot(seu_1, features = c("nFeature_RNA"), group.by = "DoubletFinder" , pt.size =  0.01)
+p2 <- VlnPlot(seu_1, features = c("nFeature_RNA"), group.by = "DoubletFinder_pK", pt.size =  0.01)
+cowplot::plot_grid(p1, p2, ncol = 2)
+```
+
+```{r}
+seu$DoubletFinder[match(colnames(seu_1), colnames(seu))] <- seu_1$DoubletFinder
+```
+
+## p8
+
+```{r}
+sample_itor <- "p8"
+seu_1 <- seu[,seu$sample == sample_itor]
+
+## Pre-process Seurat object (standard) --------------------------------------------------------------------------------------
+seu_1 <- NormalizeData(seu_1)
+seu_1 <- FindVariableFeatures(seu_1, selection.method = "vst", nfeatures = 2000)
+seu_1 <- ScaleData(seu_1)
+seu_1 <- RunPCA(seu_1)
+seu_1 <- RunTSNE(seu_1, dims = 1:20)
+seu_1 <- FindNeighbors(object = seu_1, reduction = "pca", dims = 1:20, verbose = TRUE)
+seu_1 <- FindClusters(seu_1, dims = 1:20, resolution = 0.6)
+## pK Identification (no ground-truth) ---------------------------------------------------------------------------------------
+sweep.res.list <- paramSweep_v3(seu_1, PCs = 1:20, sct = FALSE)
+sweep.stats <- summarizeSweep(sweep.res.list, GT = FALSE)
+bcmvn <- find.pK(sweep.stats)
+bcmvn
+
+## Homotypic Doublet Proportion Estimate -------------------------------------------------------------------------------------
+annotations <- seu_1@meta.data$seurat_clusters
+homotypic.prop <- modelHomotypic(annotations)           ## ex: annotations <- seu@meta.data$ClusteringResults
+nExp_poi <- round(doublet_rates[sample_itor]*nrow(seu_1@meta.data))  ## Assuming 7.5% doublet formation rate - tailor for your dataset
+nExp_poi.adj <- round(nExp_poi*(1-homotypic.prop))
+
+## Run DoubletFinder with varying classification stringencies ----------------------------------------------------------------
+seu_1 <- doubletFinder_v3(seu_1, PCs = 1:20, pN = 0.25, pK = 0.005, nExp = nExp_poi, reuse.pANN = FALSE, sct = FALSE)
+seu_1 <- doubletFinder_v3(seu_1, PCs = 1:20, pN = 0.25, pK = 0.005, nExp = nExp_poi.adj, reuse.pANN = FALSE, sct = FALSE)
+
+## Assign classification
+seu_1$DoubletFinder <- "Singlet"
+seu_1$DoubletFinder[seu_1$DF.classifications_0.25_0.005_47 == "Doublet"] <- "Doublet (high likelyhood)"
+seu_1$DoubletFinder[seu_1$DF.classifications_0.25_0.005_47 != "Doublet" &
+                    seu_1$DF.classifications_0.25_0.005_51 == "Doublet"] <- "Doublet (low likelyhood)"
+
+```
+
+```{r, fig.width=6, fig.height=4}
+p1 <- DimPlot(seu_1, group.by = "DoubletFinder")
+p1
+```
+
+```{r, fig.width=6, fig.height=4}
+p1 <- VlnPlot(seu_1, features = c("nFeature_RNA"), group.by = "DoubletFinder" , pt.size =  0.01)
+p1
+```
+
+```{r}
+seu$DoubletFinder[match(colnames(seu_1), colnames(seu))] <- seu_1$DoubletFinder
+```
+
+## p9
+
+```{r}
+sample_itor <- "p9"
+seu_1 <- seu[,seu$sample == sample_itor]
+
+## Pre-process Seurat object (standard) --------------------------------------------------------------------------------------
+seu_1 <- NormalizeData(seu_1)
+seu_1 <- FindVariableFeatures(seu_1, selection.method = "vst", nfeatures = 2000)
+seu_1 <- ScaleData(seu_1)
+seu_1 <- RunPCA(seu_1)
+seu_1 <- RunTSNE(seu_1, dims = 1:20)
+seu_1 <- FindNeighbors(object = seu_1, reduction = "pca", dims = 1:20, verbose = TRUE)
+seu_1 <- FindClusters(seu_1, dims = 1:20, resolution = 0.6)
+## pK Identification (no ground-truth) ---------------------------------------------------------------------------------------
+sweep.res.list <- paramSweep_v3(seu_1, PCs = 1:20, sct = FALSE)
+sweep.stats <- summarizeSweep(sweep.res.list, GT = FALSE)
+bcmvn <- find.pK(sweep.stats)
+bcmvn
+
+## Homotypic Doublet Proportion Estimate -------------------------------------------------------------------------------------
+annotations <- seu_1@meta.data$seurat_clusters
+homotypic.prop <- modelHomotypic(annotations)           ## ex: annotations <- seu@meta.data$ClusteringResults
+nExp_poi <- round(doublet_rates[sample_itor]*nrow(seu_1@meta.data))  ## Assuming 7.5% doublet formation rate - tailor for your dataset
+nExp_poi.adj <- round(nExp_poi*(1-homotypic.prop))
+
+## Run DoubletFinder with varying classification stringencies ----------------------------------------------------------------
+seu_1 <- doubletFinder_v3(seu_1, PCs = 1:20, pN = 0.25, pK = 0.005, nExp = nExp_poi, reuse.pANN = FALSE, sct = FALSE)
+seu_1 <- doubletFinder_v3(seu_1, PCs = 1:20, pN = 0.25, pK = 0.005, nExp = nExp_poi.adj, reuse.pANN = FALSE, sct = FALSE)
+
+## Assign classification
+seu_1$DoubletFinder <- "Singlet"
+seu_1$DoubletFinder[seu_1$DF.classifications_0.25_0.005_240 == "Doublet"] <- "Doublet (high likelyhood)"
+seu_1$DoubletFinder[seu_1$DF.classifications_0.25_0.005_240 != "Doublet" &
+                    seu_1$DF.classifications_0.25_0.005_256 == "Doublet"] <- "Doublet (low likelyhood)"
+```
+
+
+```{r, fig.width=6, fig.height=4}
+p1 <- DimPlot(seu_1, group.by = "DoubletFinder")
+p1 
+```
+
+```{r, fig.width=6, fig.height=4}
+p1 <- VlnPlot(seu_1, features = c("nFeature_RNA"), group.by = "DoubletFinder" , pt.size =  0.01)
+p1
+```
+
+```{r}
+seu$DoubletFinder[match(colnames(seu_1), colnames(seu))] <- seu_1$DoubletFinder
+```
+
+## p10
+
+```{r}
+sample_itor <- "p10"
+seu_1 <- seu[,seu$sample == sample_itor]
+
+## Pre-process Seurat object (standard) --------------------------------------------------------------------------------------
+seu_1 <- NormalizeData(seu_1)
+seu_1 <- FindVariableFeatures(seu_1, selection.method = "vst", nfeatures = 2000)
+seu_1 <- ScaleData(seu_1)
+seu_1 <- RunPCA(seu_1)
+seu_1 <- RunTSNE(seu_1, dims = 1:20)
+seu_1 <- FindNeighbors(object = seu_1, reduction = "pca", dims = 1:20, verbose = TRUE)
+seu_1 <- FindClusters(seu_1, dims = 1:20, resolution = 0.6)
+## pK Identification (no ground-truth) ---------------------------------------------------------------------------------------
+sweep.res.list <- paramSweep_v3(seu_1, PCs = 1:20, sct = FALSE)
+sweep.stats <- summarizeSweep(sweep.res.list, GT = FALSE)
+bcmvn <- find.pK(sweep.stats)
+bcmvn
+
+## Homotypic Doublet Proportion Estimate -------------------------------------------------------------------------------------
+annotations <- seu_1@meta.data$seurat_clusters
+homotypic.prop <- modelHomotypic(annotations)           ## ex: annotations <- seu@meta.data$ClusteringResults
+nExp_poi <- round(doublet_rates[sample_itor]*nrow(seu_1@meta.data))  ## Assuming 7.5% doublet formation rate - tailor for your dataset
+nExp_poi.adj <- round(nExp_poi*(1-homotypic.prop))
+
+## Run DoubletFinder with varying classification stringencies ----------------------------------------------------------------
+seu_1 <- doubletFinder_v3(seu_1, PCs = 1:20, pN = 0.25, pK = 0.005, nExp = nExp_poi, reuse.pANN = FALSE, sct = FALSE)
+seu_1 <- doubletFinder_v3(seu_1, PCs = 1:20, pN = 0.25, pK = 0.005, nExp = nExp_poi.adj, reuse.pANN = FALSE, sct = FALSE)
+
+seu_1 <- doubletFinder_v3(seu_1, PCs = 1:20, pN = 0.25, pK = 0.02, nExp = nExp_poi, reuse.pANN = FALSE, sct = FALSE)
+seu_1 <- doubletFinder_v3(seu_1, PCs = 1:20, pN = 0.25, pK = 0.02, nExp = nExp_poi.adj, reuse.pANN = FALSE, sct = FALSE)
+
+## Assign classification
+seu_1$DoubletFinder <- "Singlet"
+seu_1$DoubletFinder[seu_1$DF.classifications_0.25_0.005_72 == "Doublet"] <- "Doublet (high likelyhood)"
+seu_1$DoubletFinder[seu_1$DF.classifications_0.25_0.005_72 != "Doublet" &
+                    seu_1$DF.classifications_0.25_0.005_77 == "Doublet"] <- "Doublet (low likelyhood)"
+
+## Assign classification
+seu_1$DoubletFinder_pK <- "Singlet"
+seu_1$DoubletFinder_pK[seu_1$DF.classifications_0.25_0.02_72 == "Doublet"] <- "Doublet (high likelyhood)"
+seu_1$DoubletFinder_pK[seu_1$DF.classifications_0.25_0.02_72 != "Doublet" &
+                          seu_1$DF.classifications_0.25_0.02_77 == "Doublet"] <- "Doublet (low likelyhood)"
+```
+
+
+```{r, fig.width=12, fig.height=4}
+p1 <- DimPlot(seu_1, group.by = "DoubletFinder")
+p2 <- DimPlot(seu_1, group.by = "DoubletFinder_pK")
+p1 + p2
+```
+
+```{r, fig.width=12, fig.height=4}
+p1 <- VlnPlot(seu_1, features = c("nFeature_RNA"), group.by = "DoubletFinder" , pt.size =  0.01)
+p2 <- VlnPlot(seu_1, features = c("nFeature_RNA"), group.by = "DoubletFinder_pK", pt.size =  0.01)
+cowplot::plot_grid(p1, p2, ncol = 2)
+```
+
+```{r}
+seu$DoubletFinder[match(colnames(seu_1), colnames(seu))] <- seu_1$DoubletFinder
+```
+
+## p11
+
+```{r}
+sample_itor <- "p11"
+seu_1 <- seu[,seu$sample == sample_itor]
+
+## Pre-process Seurat object (standard) --------------------------------------------------------------------------------------
+seu_1 <- NormalizeData(seu_1)
+seu_1 <- FindVariableFeatures(seu_1, selection.method = "vst", nfeatures = 2000)
+seu_1 <- ScaleData(seu_1)
+seu_1 <- RunPCA(seu_1)
+seu_1 <- RunTSNE(seu_1, dims = 1:20)
+seu_1 <- FindNeighbors(object = seu_1, reduction = "pca", dims = 1:20, verbose = TRUE)
+seu_1 <- FindClusters(seu_1, dims = 1:20, resolution = 0.6)
+## pK Identification (no ground-truth) ---------------------------------------------------------------------------------------
+sweep.res.list <- paramSweep_v3(seu_1, PCs = 1:20, sct = FALSE)
+sweep.stats <- summarizeSweep(sweep.res.list, GT = FALSE)
+bcmvn <- find.pK(sweep.stats)
+bcmvn
+
+## Homotypic Doublet Proportion Estimate -------------------------------------------------------------------------------------
+annotations <- seu_1@meta.data$seurat_clusters
+homotypic.prop <- modelHomotypic(annotations)           ## ex: annotations <- seu@meta.data$ClusteringResults
+nExp_poi <- round(doublet_rates[sample_itor]*nrow(seu_1@meta.data))  ## Assuming 7.5% doublet formation rate - tailor for your dataset
+nExp_poi.adj <- round(nExp_poi*(1-homotypic.prop))
+
+## Run DoubletFinder with varying classification stringencies ----------------------------------------------------------------
+seu_1 <- doubletFinder_v3(seu_1, PCs = 1:20, pN = 0.25, pK = 0.005, nExp = nExp_poi, reuse.pANN = FALSE, sct = FALSE)
+seu_1 <- doubletFinder_v3(seu_1, PCs = 1:20, pN = 0.25, pK = 0.005, nExp = nExp_poi.adj, reuse.pANN = FALSE, sct = FALSE)
+
+seu_1 <- doubletFinder_v3(seu_1, PCs = 1:20, pN = 0.25, pK = 0.15, nExp = nExp_poi, reuse.pANN = FALSE, sct = FALSE)
+seu_1 <- doubletFinder_v3(seu_1, PCs = 1:20, pN = 0.25, pK = 0.15, nExp = nExp_poi.adj, reuse.pANN = FALSE, sct = FALSE)
+
+## Assign classification
+seu_1$DoubletFinder <- "Singlet"
+seu_1$DoubletFinder[seu_1$DF.classifications_0.25_0.005_73 == "Doublet"] <- "Doublet (high likelyhood)"
+seu_1$DoubletFinder[seu_1$DF.classifications_0.25_0.005_73 != "Doublet" &
+                    seu_1$DF.classifications_0.25_0.005_80 == "Doublet"] <- "Doublet (low likelyhood)"
+
+## Assign classification
+seu_1$DoubletFinder_pK <- "Singlet"
+seu_1$DoubletFinder_pK[seu_1$DF.classifications_0.25_0.15_73 == "Doublet"] <- "Doublet (high likelyhood)"
+seu_1$DoubletFinder_pK[seu_1$DF.classifications_0.25_0.15_73 != "Doublet" &
+                          seu_1$DF.classifications_0.25_0.15_80 == "Doublet"] <- "Doublet (low likelyhood)"
+```
+
+```{r, fig.width=12, fig.height=4}
+p1 <- DimPlot(seu_1, group.by = "DoubletFinder")
+p2 <- DimPlot(seu_1, group.by = "DoubletFinder_pK")
+p1 + p2
+```
+
+```{r, fig.width=12, fig.height=4}
+p1 <- VlnPlot(seu_1, features = c("nFeature_RNA"), group.by = "DoubletFinder" , pt.size =  0.01)
+p2 <- VlnPlot(seu_1, features = c("nFeature_RNA"), group.by = "DoubletFinder_pK", pt.size =  0.01)
+cowplot::plot_grid(p1, p2, ncol = 2)
+```
+
+```{r}
+seu$DoubletFinder[match(colnames(seu_1), colnames(seu))] <- seu_1$DoubletFinder
+```
+
+# visualise the overall results
+
+```{r}
+table(seu$DoubletFinder, seu$sample)
+```
+
+```{r}
+saveRDS(seu@meta.data, "perturb_seq/analysis/preprocessing/rds/seu_allcells_doubletFinder.rds")
+```
+
+```{r}
+DimPlot(seu, reduction = "tsne", group.by = "DoubletFinder")
+```
+
+```{r, fig.height=12, fig.width=15}
+DimPlot(seu, reduction = "tsne", group.by = "DoubletFinder", split.by = "sgRNA_group", ncol = 5)
+```
+
+# Technical
+
+```{r}
+sessionInfo()
+```

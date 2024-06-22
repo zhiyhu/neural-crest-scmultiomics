@@ -69,8 +69,6 @@ The analysis scripts below are located in the `multiome` directory.
 * Prepare ATAC data: `multiome/6velocity/multivelo/05wtnohox_atac.R`
 * Run MultiVelo: `multiome/6velocity/multivelo/wtnohox_multivelo_uncorrected.py` and `multiome/6velocity/multivelo/wtnohox_seurat_wnn.R`
 
-#### 6.3 RegVelo
-
 
 ### 7 Gene regulatory network (GRN) analysis  
 
@@ -130,7 +128,7 @@ The analysis scripts below are located in the `multiome` directory.
 
 ## Merscope 
 
-### 1 panel design
+### 1 Gene panel design
 
 * Prepare datasets, run SPARPROS, evaludate the probe set: `merscope/1panel_design`
 
@@ -142,7 +140,28 @@ The analysis scripts below are located in the `multiome` directory.
 
 ## Perturb-seq data analysis
 
-### 1 
+### 1 Preprocessing
+
+* Remove ambient RNA: `perturb-seq/1preprocessing/soupX_all_samples.R`
+* Merge data: `perturb-seq/1preprocessing/merge_all_samples.Rmd`
+* Doublet identification: `perturb-seq/1preprocessing/doubletfinder_RNAonly.Rmd`
+
+### 2 Clustering and cell type annotation
+
+* Merge SoupX-corrected matrix, cluster all cells and integrate sgRNA information: `perturb-seq/2clustering/1_qc_clustering_allcells_p1top11.Rmd`
+* Cluster singlet cells and integrate with multiome data: `perturb-seq/2clustering/2_clustering_allcells_singlet.Rmd`
+* Cluster NC cells and integrate with multiome-RNA NC data: `perturb-seq/2clustering/3_clustering_NC_p1top11.Rmd`
+
+### 3 Quantification of in vivo perturbation effects 
+
+* MELD computation and PHATE visualisation: `perturb-seq/3perturbation_effects/1meld_calculateLikelihood.ipynb`
+* Impute latent time by RPCA and scVI: `perturb-seq/3perturbation_effects/2impute_by_rpca_results.Rmd` and `perturb-seq/3perturbation_effects/2impute_by_scvi_results.Rmd`
+* Quantify perturbation effects: `perturb-seq/3perturbation_effects/3extensive_analysis_meld.Rmd`
+
+### 4 Figure factory
+
+* Effect heatmap, coverage violin plot, PHATE density plot `perturb-seq/4fig_factory/1perturbseq_vis.Rmd`
+* Trend plots: `perturb-seq/4fig_factory/2vis_likelihood.Rmd`
 
 ## ChIP-seq data analysis
 

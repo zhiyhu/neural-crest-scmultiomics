@@ -1,0 +1,141 @@
+---
+title: "Plot gene expression"
+output: html_document
+date: "2024-01-18"
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+library(Seurat)
+library(dittoSeq)
+library(scCustomize)
+library(ggplot2)
+library(RColorBrewer)
+
+stage_cols <- RColorBrewer::brewer.pal("Spectral", n = 10)
+stage_cols_ss3 <- stage_cols[c(10,9,8,7,2,3,5,6)]
+```
+
+## read data
+
+```{r}
+seu <- readRDS("/home/huzhiy/projects_ox/smartseq3_nc/analysis/clustering/rds/nc_wt_seuobj_batches1to8.rds")
+seu@reductions[["tsne"]]@cell.embeddings[,2] <- -seu@reductions[["tsne"]]@cell.embeddings[,2]
+```
+
+## Featureplot
+
+```{r, fig.width=15, fig.height=4}
+p1 <- FeaturePlot_scCustom(seurat_object = seu, features =  "mitfa", reduction = "tsne", 
+                     pt.size =1, alpha_exp = 0.5)
+p2 <- FeaturePlot_scCustom(seurat_object = seu, features =  "tfec", reduction = "tsne", 
+                     pt.size =1, alpha_exp = 0.5)
+p3 <- FeaturePlot_scCustom(seurat_object = seu, features =  "tfeb", reduction = "tsne", 
+                     pt.size =1, alpha_exp = 0.5)
+p4 <- FeaturePlot_scCustom(seurat_object = seu, features =  "bhlhe40", reduction = "tsne", 
+                     pt.size =1, alpha_exp = 0.5)
+cowplot::plot_grid(p1,p2, p3, p4, ncol = 4)
+ggsave("/home/huzhiy/projects_ox/smartseq3_nc/analysis/fig_factory/figures/3gene_exp/pigment_TFs_ss3_ncwt_tsneplots.pdf", width = 14, height = 3)
+```
+
+## Violin plot
+
+```{r, fig.height=6, fig.width=5}
+gene_list_plot <- c("tfec","tfeb","mitfa","bhlhe40")
+
+# Create Plots
+Stacked_VlnPlot(seurat_object = seu, features = gene_list_plot, x_lab_rotate = TRUE,group.by = "Stage", colors_use = stage_cols_ss3[3:8]) #
+    # human_colors_list
+ggsave("/home/huzhiy/projects_ox/smartseq3_nc/analysis/fig_factory/figures/3gene_exp/pigment_TFs_ss3_ncwt_vlnplots.pdf", width = 4, height = 6)
+
+```
+
+
+```{r}
+Stacked_VlnPlot(seurat_object = seu, features = c("sox10","elf1"), 
+                x_lab_rotate = TRUE,group.by = "Stage", colors_use = stage_cols_ss3[3:8]) 
+```
+
+
+
+
+```{r}
+DimPlot(seu, group.by = "stage", reduction = "tsne")
+```
+
+
+```{r, fig.height=4, fig.width=10}
+outputdir="/home/huzhiy/projects_ox/multiome/analysis_newref/integration/data/"
+
+seu.integrated <- readRDS(paste0(outputdir, "integrated/NC_cca_ss3_mulitome.rds"))
+# ncall <- readRDS("/home/huzhiy/projects_ox/multiome/analysis_newref/integration/data/ss3/nc_anterior_seuobj_batches1to8.rds")
+ncall <- seu.integrated[,seu.integrated$method ==  "Smart-seq3"]
+# Make a set of data.frames to keep track during cluster assignment.
+clusters <- length(unique(ncall$seurat_clusters))
+cluster.assignments <- data.frame(
+  cluster=(1:clusters)-1,
+  name=rep(NA, clusters),
+  row.names=(1:clusters)-1
+)
+
+cluster.assignments["0","name"] <- "dNC_nohox"
+cluster.assignments["5","name"] <- "NPB_nohox"
+cluster.assignments["6","name"] <- "Mutant_nohox_early"
+cluster.assignments["15","name"] <- "NPB_hox2"
+
+cluster.assignments["12","name"] <- "dNC_hoxa2b"
+cluster.assignments["14","name"] <- "NPB_hox3"
+cluster.assignments["16","name"] <- "dNC_hox34"
+cluster.assignments["17","name"] <- "NC_trunk"
+
+
+cluster.assignments["8","name"] <- "Mutant_hox23"
+cluster.assignments["11","name"] <- "Mutant_nohox_12_22ss"
+cluster.assignments["1","name"] <- "Mutant_nohox_pigment"
+
+cluster.assignments["10","name"] <- "mNC_vagal"
+cluster.assignments["13","name"] <- "mNC_hox34"
+cluster.assignments["3","name"] <- "Pigment"
+cluster.assignments["2","name"] <- "mNC_nohox"
+cluster.assignments["9","name"] <- "mNC_arch2"
+
+cluster.assignments["4","name"] <- "mNC_arch1"
+
+cluster.assignments["7","name"] <- "mNC_head_mesenchymal"
+
+ncall@meta.data$cell_type <- NA
+ncall@meta.data$cell_type <- cluster.assignments$name[match(ncall$seurat_clusters, cluster.assignments$cluster)]
+ncall$cell_type <- factor(ncall$cell_type, levels = c('NPB_nohox','NPB_hox2','NPB_hox3','dNC_nohox','dNC_hoxa2b','dNC_hox34','mNC_nohox','mNC_head_mesenchymal','mNC_arch1','mNC_arch2','mNC_hox34','NC_trunk','mNC_vagal','Mutant_nohox_pigment','Pigment','Mutant_nohox_12_22ss','Mutant_hox23','Mutant_nohox_early'))
+
+DefaultAssay(ncall) <- "RNA"
+ncall[["integrated"]] <- NULL
+DotPlot_scCustom(ncall,features =  c("rxraa","rxrab","rarga","rargb","smarcc1a","smarcc1b","nr2f2","nr2f5","ets1",
+                                     "ets2","erf","erfl3","fli1a","fli1b","fev","elk3","ebf3a","ebf3a.1","ebf1b","etv2"), 
+                 group.by  = "cell_type",
+                 x_lab_rotate = TRUE)
+ggsave("/home/huzhiy/projects_ox/smartseq3_nc/analysis/fig_factory/figures/3gene_exp/mesenchymal_TFexpr_full.pdf", width = 9, height = 6)
+```
+
+```{r}
+DotPlot_scCustom(ncall,features =  c("rxraa","rarga","smarcc1a","nr2f2","nr2f5","ets1",
+                                     "erf","erfl3","fli1a","elk3","ebf3a","etv2"), 
+                 group.by  = "cell_type",
+                 x_lab_rotate = TRUE)
+ggsave("/home/huzhiy/projects_ox/smartseq3_nc/analysis/fig_factory/figures/3gene_exp/mesenchymal_TFexpr_selected.pdf", width = 7, height = 6)
+```
+
+```{r, fig.width=12, fig.height=12}
+col_ct <- read.csv("/home/huzhiy/projects_ox/multiome/analysis_newref/clustering/figures/for_pre/df_coloursUserd.csv", row.names = 1)
+col_ct  <- rbind(col_ct , c("Pigment","diff","#9A77B8"))
+col_ct  <- rbind(col_ct , c("Mutant_hox23","Mutant","#CDABC0"))
+col_ct  <- rbind(col_ct , c("Mutant_nohox_pigment","Mutant","#CAB2D6"))
+# col_ct$cell_type <- factor(col_ct$cell_type, levels = col_ct$cell_type)
+col_ct <- col_ct[col_ct$cell_type %in% ncall$cell_type,]
+cols <- col_ct$colour
+names(cols) <- col_ct$cell_type
+VlnPlot_scCustom(ncall,features =  c("rxraa","rarga","smarcc1a","nr2f2","nr2f5","ets1",
+                                     "erf","erfl3","fli1a","elk3","ebf3a","etv2"),colors_use =  cols,
+                 group.by  = "cell_type")
+ggsave("/home/huzhiy/projects_ox/smartseq3_nc/analysis/fig_factory/figures/3gene_exp/mesenchymal_TFexpr_selected_vlnplot.pdf", width = 14, height = 12)
+```
+

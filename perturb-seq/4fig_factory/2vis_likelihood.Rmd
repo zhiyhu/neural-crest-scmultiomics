@@ -1,0 +1,225 @@
+---
+title: "perturb-seq vis likelihood"
+output: html_document
+date: "2024-01-23 (last modified: `r Sys.Date()`)"
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+library(pheatmap)
+library(Seurat)
+library(ggplot2)
+library(cowplot)
+library(viridis)
+figdir <- "perturb_seq/analysis/fig_factory/figures/2meld_likelihood/"
+                          
+col_perturb <- c(ArchR::ArchRPalettes$calm[1:15],ArchR::ArchRPalettes$kelly[1:7],"grey50")
+
+names(col_perturb ) <- c('fli1a_erf_erfl3','erf_erfl3','erf','nr2f2','nr2f5','rarga','rxraa','smarcc1a','elk3','fli1a_elk3','fli1a','fli1a_etv2','etv2','ebf3a','ets1','elf1','tfec','tfec_mitfa_bhlhe40','mitfa_tfec','mitfa_tfec_tfeb','mitfa_tfec_inhouse','mitfa','control')
+```
+
+```{r}
+perturbseq <- readRDS("perturb_seq/analysis/clustering/output_p1top11/seu_NC_clustered.rds")
+metadata <- readRDS("perturb_seq/analysis/differential_analysis/data/metadata/perturbseq_filtered_metadata_latentTime_likelihood.rds")
+perturbseq <- perturbseq[, rownames(metadata)]
+perturbseq@meta.data <- metadata
+```
+
+## read meld likelihood
+
+```{r}
+panel <- unique(perturbseq$sgRNA_group)
+panel <- panel[!panel %in% c("multiplet", "negative", "control")]
+panel <- na.omit(panel)
+```
+
+```{r}
+rls_list <- readRDS("perturb_seq/analysis/differential_analysis/data/meld/dichotomised_rlslist_rpca.rds")
+for(i in 1:length(rls_list)){
+  rls_list[[i]] $sgRNA_group <- names(rls_list)[i]
+}
+```
+
+# Trends
+
+## ETS singlet KO
+
+```{r}
+df_plot <- rbind(rls_list[["fli1a"]],rls_list[["etv2"]],rls_list[["erf"]],rls_list[["ets1"]],rls_list[["ebf3a"]],rls_list[["elk3"]])
+p <- ggplot(df_plot[df_plot$cell_anno == "mNC_head_mesenchymal",], 
+            aes(x = latent_time_imputed, y = likelihood, col = sgRNA_group)) + 
+  geom_point(alpha =0.3)
+# Adding a spline
+p <- p + geom_smooth(method = "loess", se =  TRUE) + scale_color_manual(values = col_perturb) + theme_minimal() + facet_wrap(~sgRNA_group, ncol = 3) + geom_hline(yintercept = 0.5, col = "grey30", lty = 2)
+print(p)
+ggsave(paste0(figdir,"trends_headmes_ets_singleFactor.pdf"),p, width = 8, height = 5.2)
+```
+
+
+```{r}
+df_plot <- rbind(rls_list[["fli1a"]],rls_list[["etv2"]],rls_list[["erf"]],rls_list[["ets1"]],rls_list[["ebf3a"]],rls_list[["elk3"]])
+p <- ggplot(df_plot[df_plot$cell_anno == "mNC_arch1",], 
+            aes(x = latent_time_imputed, y = likelihood, col = sgRNA_group)) + 
+  geom_point(alpha =0.3)
+# Adding a spline
+p <- p + geom_smooth(method = "loess", se =  TRUE) + scale_color_manual(values = col_perturb) + theme_minimal() + facet_wrap(~sgRNA_group, ncol = 3) + geom_hline(yintercept = 0.5, col = "grey30", lty = 2)
+print(p)
+ggsave(paste0(figdir,"trends_arch1_ets_singleFactor.pdf"),p, width = 8, height = 5.2)
+```
+
+```{r}
+df_plot <- rbind(rls_list[["fli1a"]],rls_list[["etv2"]],rls_list[["erf"]],rls_list[["ets1"]],rls_list[["ebf3a"]],rls_list[["elk3"]])
+p <- ggplot(df_plot[df_plot$cell_anno == "mNC_arch2",], 
+            aes(x = latent_time_imputed, y = likelihood, col = sgRNA_group)) + 
+  geom_point(alpha =0.3)
+# Adding a spline
+p <- p + geom_smooth(method = "loess", se =  TRUE) + scale_color_manual(values = col_perturb) + theme_minimal() + facet_wrap(~sgRNA_group, ncol = 3) + geom_hline(yintercept = 0.5, col = "grey30", lty = 2)
+print(p)
+ggsave(paste0(figdir,"trends_arch2_ets_singleFactor.pdf"),p, width = 8, height = 5.2)
+```
+
+<!-- ```{r} -->
+<!-- # Horizontal half violin plot -->
+<!-- ggplot(df_plot[df_plot$cell_anno == "mNC_head_mesenchymal",], aes(sgRNA_group, likelihood, fill = sgRNA_group)) + -->
+<!--   geom_violinhalf() +coord_flip() + -->
+<!--   theme(legend.position = "none") -->
+<!-- ``` -->
+
+
+```{r}
+# ggplot(df_plot[df_plot$cell_anno == "mNC_head_mesenchymal",], aes(x = latent_time_imputed, y = likelihood, col =sgRNA_group)) + geom_point() + 
+```
+
+## ETS multiple KO
+
+```{r}
+df_plot <- rbind(rls_list[["fli1a"]],rls_list[["etv2"]],rls_list[["fli1a_etv2"]])
+p <- ggplot(df_plot[df_plot$cell_anno == "mNC_head_mesenchymal",], 
+            aes(x = latent_time_imputed, y = likelihood, col = sgRNA_group)) + 
+  geom_point(alpha =0.3)
+# Adding a spline
+p <- p + geom_smooth(method = "loess", se =  TRUE) + scale_color_manual(values = col_perturb) + theme_minimal() + facet_wrap(~sgRNA_group, ncol = 3) + geom_hline(yintercept = 0.5, col = "grey30", lty = 2)
+print(p)
+ggsave(paste0(figdir,"trends_headmes_fli1a_etv2.pdf"),p, width = 8, height = 2.6)
+```
+
+```{r}
+df_plot <- rbind(rls_list[["fli1a"]],rls_list[["elk3"]],rls_list[["fli1a_elk3"]])
+p <- ggplot(df_plot[df_plot$cell_anno == "mNC_head_mesenchymal",], 
+            aes(x = latent_time_imputed, y = likelihood, col = sgRNA_group)) + 
+  geom_point(alpha =0.3)
+# Adding a spline
+p <- p + geom_smooth(method = "loess", se =  TRUE) + scale_color_manual(values = col_perturb) + theme_minimal() + facet_wrap(~sgRNA_group, ncol = 3) + geom_hline(yintercept = 0.5, col = "grey30", lty = 2)
+print(p)
+ggsave(paste0(figdir,"trends_headmes_fli1a_elk3.pdf"),p, width = 8, height = 2.6)
+```
+
+```{r}
+df_plot <- rbind(rls_list[["fli1a"]],rls_list[["etv2"]],rls_list[["fli1a_etv2"]])
+p <- ggplot(df_plot[df_plot$cell_anno == "mNC_head_mesenchymal",], 
+            aes(x = latent_time_imputed, y = likelihood, col = sgRNA_group)) + 
+  geom_point(alpha =0.3)
+# Adding a spline
+p <- p + geom_smooth(method = "loess", se =  TRUE) + scale_color_manual(values = col_perturb) + theme_minimal() +  geom_hline(yintercept = 0.5, col = "grey30", lty = 2)
+print(p)
+ggsave(paste0(figdir,"trends_headmes_fli1a_etv2_merged.pdf"),p, width = 4, height = 2.6)
+```
+
+
+```{r}
+df_plot <- rbind(rls_list[["fli1a"]],rls_list[["elk3"]],rls_list[["fli1a_elk3"]])
+p <- ggplot(df_plot[df_plot$cell_anno == "mNC_head_mesenchymal",], 
+            aes(x = latent_time_imputed, y = likelihood, col = sgRNA_group)) + 
+  geom_point(alpha =0.3)
+# Adding a spline
+p <- p + geom_smooth(method = "loess", se =  TRUE) + scale_color_manual(values = col_perturb) + theme_minimal() +  geom_hline(yintercept = 0.5, col = "grey30", lty = 2)
+print(p)
+ggsave(paste0(figdir,"trends_headmes_fli1a_elk3_merged.pdf"),p, width = 4, height = 2.6)
+```
+
+```{r}
+df_plot <- rbind(rls_list[["nr2f2"]],rls_list[["nr2f5"]],rls_list[["smarcc1a"]])
+p <- ggplot(df_plot[df_plot$cell_anno == "mNC_head_mesenchymal",], 
+            aes(x = latent_time_imputed, y = likelihood, col = sgRNA_group)) + 
+  geom_point(alpha =0.3)
+# Adding a spline
+p <- p + geom_smooth(method = "loess", se =  TRUE) + scale_color_manual(values = col_perturb) + theme_minimal() + facet_wrap(~sgRNA_group, ncol = 3) + geom_hline(yintercept = 0.5, col = "grey30", lty = 2)
+print(p)
+ggsave(paste0(figdir,"trends_headmes_nr2f5_nr2f2_smarcc1a.pdf"),p, width = 8, height = 2.6)
+```
+
+
+```{r}
+df_plot <- rbind(rls_list[["rxraa"]],rls_list[["rarga"]],rls_list[["nr2f5"]])
+p <- ggplot(df_plot[df_plot$cell_anno == "mNC_arch1",], 
+            aes(x = latent_time_imputed, y = likelihood, col = sgRNA_group)) + 
+  geom_point(alpha =0.3)
+# Adding a spline
+p <- p + geom_smooth(method = "loess", se =  TRUE) + scale_color_manual(values = col_perturb) + theme_minimal() + facet_wrap(~sgRNA_group, ncol = 3)  + geom_hline(yintercept = 0.5, col = "grey30", lty = 2)
+print(p)
+ggsave(paste0(figdir,"trends_arch1_nr2f5_rarga_rxraa.pdf"),p, width = 8, height = 2.6)
+```
+
+```{r}
+df_plot <- rbind(rls_list[["fli1a"]],rls_list[["erf"]],rls_list[["erf_erfl3"]],rls_list[["fli1a_erf_erfl3"]])
+p <- ggplot(df_plot[df_plot$cell_anno == "mNC_head_mesenchymal",], 
+            aes(x = latent_time_imputed, y = likelihood, col = sgRNA_group)) + 
+  geom_point(alpha =0.3)
+# Adding a spline
+p <- p + geom_smooth(method = "loess", se =  TRUE) + scale_color_manual(values = col_perturb) + theme_minimal() + facet_wrap(~sgRNA_group, ncol = 3) + geom_hline(yintercept = 0.5, col = "grey30", lty = 2)
+print(p)
+ggsave(paste0(figdir,"trends_headmes_fli1a_erf_erfl3.pdf"),p, width = 8, height = 5.2)
+```
+
+
+```{r}
+df_plot <- rbind(rls_list[["tfec"]],rls_list[["mitfa_tfec_inhouse"]],rls_list[["mitfa_tfec_tfeb"]])
+p <- ggplot(df_plot[df_plot$cell_anno == "mNC_head_mesenchymal",], 
+            aes(x = latent_time_imputed, y = likelihood, col = sgRNA_group)) + 
+  geom_point(alpha =0.5)
+# Adding a spline
+p <- p + geom_smooth(method = "loess", se =  TRUE) + scale_color_manual(values = col_perturb)+ theme_minimal() + facet_wrap(~sgRNA_group, ncol = 3) + geom_hline(yintercept = 0.5, col = "grey30", lty = 2)
+print(p)
+ggsave(paste0(figdir,"trends_headmes_tfec_mitfa_tfeb.pdf"),p, width = 8, height = 2.6)
+```
+
+# phate
+
+
+```{r}
+phate_data <- read.csv("perturb_seq/analysis/differential_analysis/data/phate_coordinates.csv", row.names = 1)
+head(phate_data)
+```
+
+```{r}
+perturbseq@reductions[["phate"]] <- CreateDimReducObject(as.matrix(phate_data)*100, key = "phate")
+```
+
+```{r}
+figdir <- '~/projects_ox/perturb_seq/analysis/differential_analysis/figures/meld_calculateLikelihood/'
+dat_lst <- list()
+itor <- gene <- "erf_erfl3"
+
+dat_lst[[itor]] <- read.csv(paste0(figdir,"likelihood_",itor,".csv"), row.names = 1)
+dat_lst[[itor]]$gene <- itor
+dat_lst[[itor]]$likelihood_mean <- apply(dat_lst[[itor]][,3:4],1,mean)
+
+ps_small <- perturbseq[,rownames(dat_lst[[gene]])]
+ps_small$likelihood <- NA
+ps_small$likelihood[match(rownames(dat_lst[[gene]]), colnames(ps_small))] <- as.numeric(dat_lst[[gene]]$likelihood_mean)
+
+figdir <- '~/projects_ox/perturb_seq/analysis/fig_factory/figures/2meld_likelihood/'
+FeaturePlot(ps_small, features = "likelihood", reduction = "phate", pt.size = 0.5) & 
+  scale_color_gradientn(
+    colours = c(muted("blue"), "white", muted("red")),
+    values = rescale(c(min(ps_small$likelihood),median(ps_small$likelihood),max(ps_small$likelihood))),
+    guide = "colorbar", limits=c(min(ps_small$likelihood),max(ps_small$likelihood))
+  )  
+ggsave(paste0(figdir,"phate_likelihood_erf_erfl3.pdf"), width = 5, height = 4)
+```
+
+```{r}
+DimPlot(perturbseq, reduction = "phate", group.by = "cell_anno", cols = col.ls)
+ggsave(paste0(figdir,"phate_cellAnno.pdf"), width = 7, height = 4.5)
+```
+

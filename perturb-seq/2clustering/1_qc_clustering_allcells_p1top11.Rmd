@@ -1,0 +1,608 @@
+---
+title: "Clustering and population enrichment analysis of perturbseq data"
+author: "Zhiyuan Hu"
+date: '2023 Nov 15 (last modified: `r Sys.Date()`)'
+output:
+  prettydoc::html_pretty:
+    theme: architect
+    highlight: github
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+library(dplyr)
+library(Seurat)
+# library(patchwork)
+library(RColorBrewer)
+library(scales)
+library(ggplot2)
+library(cowplot)
+stage_cols <- RColorBrewer::brewer.pal("Spectral", n = 11)
+genotype_cols <- RColorBrewer::brewer.pal("Set2", n = 8)[c(1,2,3,8)]
+sample_cols <- RColorBrewer::brewer.pal("Accent", n = 8)
+doublet_cols <- RColorBrewer::brewer.pal("Paired", n = 8)[c(6,8,2)]
+col.ls <- c(ArchR::ArchRPalettes$stallion, ArchR::ArchRPalettes$bear) # archR color palettes
+names(col.ls) <- NULL
+```
+
+# Read data
+
+```{r read data}
+counts <- Read10X("perturb_seq/cellranger_ccb/output/p1/outs/strainedCounts_soupX/")
+seu1 <- CreateSeuratObject(
+  counts = counts,
+  assay = "RNA"
+)
+seu1 <- RenameCells(seu1, new.names = paste0("p1_",colnames(seu1)))
+seu1$sample <- "p1"
+
+counts <- Read10X("perturb_seq/cellranger/output/p2/outs/strainedCounts_soupX/")
+seu2 <- CreateSeuratObject(
+  counts = counts,
+  assay = "RNA", sample = "p2"
+)
+seu2 <- RenameCells(seu2, new.names = paste0("p2_",colnames(seu2)))
+seu2$sample <- "p2"
+seu <- merge(seu1, y = seu2)
+
+counts <- Read10X("perturb_seq/cellranger_ccb/output/p3/outs/strainedCounts_soupX/")
+seu2 <- CreateSeuratObject(
+  counts = counts,
+  assay = "RNA", sample = "p3"
+)
+seu2 <- RenameCells(seu2, new.names = paste0("p3_",colnames(seu2)))
+seu2$sample <- "p3"
+seu <- merge(seu, y = seu2)
+
+counts <- Read10X("perturb_seq/cellranger/output/p5/outs/strainedCounts_soupX/")
+seu2 <- CreateSeuratObject(
+  counts = counts,
+  assay = "RNA"
+)
+seu2 <- RenameCells(seu2, new.names = paste0("p5_",colnames(seu2)))
+seu2$sample <- "p5"
+seu <- merge(seu, y = seu2)
+
+counts <- Read10X("perturb_seq/cellranger/output/p6/outs/strainedCounts_soupX/")
+seu2 <- CreateSeuratObject(
+  counts = counts,
+  assay = "RNA"
+)
+seu2 <- RenameCells(seu2, new.names = paste0("p6_",colnames(seu2)))
+seu2$sample <- "p6"
+seu <- merge(seu, y = seu2)
+
+counts <- Read10X("perturb_seq/cellranger/output/p8/outs/strainedCounts_soupX/")
+seu2 <- CreateSeuratObject(
+  counts = counts,
+  assay = "RNA"
+)
+seu2 <- RenameCells(seu2, new.names = paste0("p8_",colnames(seu2)))
+seu2$sample <- "p8"
+seu <- merge(seu, y = seu2)
+head(colnames(seu ))
+
+counts <- Read10X("perturb_seq/cellranger/output/p9/outs/strainedCounts_soupX/")
+seu2 <- CreateSeuratObject(
+  counts = counts,
+  assay = "RNA"
+)
+seu2 <- RenameCells(seu2, new.names = paste0("p9_",colnames(seu2)))
+seu2$sample <- "p9"
+seu <- merge(seu, y = seu2)
+
+counts <- Read10X("perturb_seq/cellranger/output/p10/outs/strainedCounts_soupX/")
+seu2 <- CreateSeuratObject(
+  counts = counts,
+  assay = "RNA"
+)
+seu2 <- RenameCells(seu2, new.names = paste0("p10_",colnames(seu2)))
+seu2$sample <- "p10"
+seu <- merge(seu, y = seu2)
+
+counts <- Read10X("perturb_seq/cellranger/output/p11/outs/strainedCounts_soupX/")
+seu2 <- CreateSeuratObject(
+  counts = counts,
+  assay = "RNA"
+)
+seu2 <- RenameCells(seu2, new.names = paste0("p11_",colnames(seu2)))
+seu2$sample <- "p11"
+seu <- merge(seu, y = seu2)
+head(colnames(seu ))
+```
+
+```{r}
+table(seu$sample)
+```
+
+```{r}
+rm(seu1, seu2)
+gc()
+```
+
+
+# QC
+
+```{r percent.mt, fig.width=8, fig.height=3.5}
+DefaultAssay(seu) <- "RNA"
+seu[["percent.mt"]] <- PercentageFeatureSet(seu, pattern = "^mt-")
+VlnPlot(
+  object = seu,
+  features = c("nCount_RNA",  "nFeature_RNA", "percent.mt"),
+  ncol = 3, 
+  pt.size = 0
+)
+```
+
+```{r percent.mt2, fig.width=8, fig.height=15}
+DefaultAssay(seu) <- "RNA"
+VlnPlot(
+  object = seu,
+  features = c("nCount_RNA",  "nFeature_RNA", "percent.mt"),
+  ncol = 1, group.by = "sample",
+  pt.size = 0
+)
+```
+
+```{r FeatureScatter-qc,fig.width=7, fig.height=3}
+plot1 <- FeatureScatter(seu, feature1 = "nCount_RNA", feature2 = "percent.mt", pt.size = 0.1)
+plot2 <- FeatureScatter(seu, feature1 = "nCount_RNA", feature2 = "nFeature_RNA", pt.size = 0.1)
+plot1 + plot2
+```
+
+```{r}
+# filter out low quality cells
+seu <- subset(
+  x = seu,
+  subset = nCount_RNA > 2000 &
+    nFeature_RNA > 300 &
+    nFeature_RNA < 9000 &
+    percent.mt < 5 #
+)
+```
+
+```{r percent.mt3, fig.width=8, fig.height=15}
+DefaultAssay(seu) <- "RNA"
+VlnPlot(
+  object = seu,
+  features = c("nCount_RNA",  "nFeature_RNA", "percent.mt"),
+  ncol = 1, group.by = "sample",
+  pt.size = 0
+)
+```
+
+# Seurat pipeline of singlet GEX data
+
+```{r, fig.width=12, fig.height=5}
+DefaultAssay(seu) <- "RNA"
+seu <- NormalizeData(seu, normalization.method = "LogNormalize", scale.factor = 10000)
+seu <- FindVariableFeatures(seu, selection.method = "vst", nfeatures = 2000)
+
+# Identify the 10 most highly variable genes
+top10 <- head(VariableFeatures(seu), 10)
+
+# plot variable features with and without labels
+plot1 <- VariableFeaturePlot(seu)
+plot2 <- LabelPoints(plot = plot1, points = top10, repel = TRUE)
+plot1 + plot2
+```
+
+```{r}
+all.genes <- rownames(seu)
+seu <- ScaleData(seu, features = all.genes)
+seu <- RunPCA(seu, features = VariableFeatures(object = seu))
+# Examine and visualize PCA results a few different ways
+print(seu[["pca"]], dims = 1:5, nfeatures = 5)
+```
+
+```{r}
+DimPlot(seu, reduction = "pca", group.by = "sample")
+```
+
+```{r}
+ElbowPlot(seu, ndims = 50)
+```
+
+```{r}
+seu <- FindNeighbors(seu, dims = 1:20, k.param = 7)
+seu <- FindClusters(seu, resolution = 1)
+# If you haven't installed UMAP, you can do so via reticulate::py_install(packages =
+# 'umap-learn')
+seu <- RunTSNE(seu, dims = 1:20)
+```
+
+## Clustering results
+
+```{r}
+DimPlot(seu, label = TRUE, reduction = "tsne",cols = alpha(col.ls, 0.3))
+```
+
+
+```{r}
+DimPlot(seu, label = FALSE, reduction = "tsne", 
+        group.by = "sample", cols = alpha(col.ls, 0.3))
+```
+
+## Expression of known marker genes
+
+```{r expression-known-markers2, fig.width=12, fig.height=10}
+known_markers <- c("foxd3", "sox10","pax3a","tfap2a",
+                   "sox3","sox19b",
+                   "mafba","egr2b","hoxb3a",
+                   "tbxta","sox2","msgn1","rxraa",
+                   "mitfa","tfec","erf","erfl3", "fli1a",
+                   "rarga","nr2f5")
+FeaturePlot(seu, features = c(known_markers), ncol = 4, reduction = "tsne")
+```
+
+```{r, fig.width=12, fig.height=10}
+VlnPlot(seu, features = c(known_markers), group.by = "seurat_clusters", ncol = 4)
+```
+
+# process crispr data
+
+## read perturb results - p1
+
+```{r}
+sgRNA_df <- read.csv("perturb_seq/cellranger_ccb/output/p1/outs/crispr_analysis/protospacer_calls_per_cell.csv")
+table(sgRNA_df$feature_call)[order(table(sgRNA_df$feature_call), decreasing = T)][1:10]
+```
+
+```{r}
+sgRNA_df$mitfa_tfec <- NA
+sgRNA_df$mitfa_tfec <- grepl("mitfa", sgRNA_df$feature_call) |  grepl("tfec", sgRNA_df$feature_call)
+sgRNA_df$fli1a_erf_erfl3 <- NA
+sgRNA_df$fli1a_erf_erfl3 <- grepl("fli1a", sgRNA_df$feature_call) | grepl("erf", sgRNA_df$feature_call)| grepl("erfl3", sgRNA_df$feature_call)
+sgRNA_df$Cherry <- NA
+sgRNA_df$Cherry <- grepl("Cherry", sgRNA_df$feature_call) 
+
+sgRNA_df$group <- "multiplet"
+sgRNA_df$group[sgRNA_df$mitfa_tfec & !sgRNA_df$fli1a_erf_erfl3 & !sgRNA_df$Cherry] <- "mitfa_tfec_inhouse"
+sgRNA_df$group[!sgRNA_df$mitfa_tfec & sgRNA_df$fli1a_erf_erfl3 & !sgRNA_df$Cherry] <- "fli1a_erf_erfl3"
+sgRNA_df$group[!sgRNA_df$mitfa_tfec & !sgRNA_df$fli1a_erf_erfl3 & sgRNA_df$Cherry] <- "control"
+sgRNA_df$group[!sgRNA_df$mitfa_tfec & !sgRNA_df$fli1a_erf_erfl3 & !sgRNA_df$Cherry] <- "negative"
+table(sgRNA_df$group)
+```
+
+```{r}
+sgRNA_df$cell_barcode <- paste0("p1_",sgRNA_df$cell_barcode)
+sgRNA_df <- sgRNA_df[sgRNA_df$cell_barcode %in% colnames(seu), ]
+table(sgRNA_df$group)
+```
+
+```{r}
+seu$sgRNA_group <- "negative"
+seu$sgRNA_group[match(sgRNA_df$cell_barcode, colnames(seu))] <- sgRNA_df$group
+table(seu$sgRNA_group)
+```
+
+
+## read guide data -p2
+
+```{r}
+sgRNA_df <- read.csv("perturb_seq/cellranger/output/p2/outs/crispr_analysis/protospacer_calls_per_cell.csv")
+table(sgRNA_df$feature_call)[order(table(sgRNA_df$feature_call), decreasing = T)]
+```
+
+
+```{r}
+sgRNA_df$erf_erfl3 <- NA
+sgRNA_df$erf_erfl3 <- grepl("erf", sgRNA_df$feature_call) | grepl("erfl3", sgRNA_df$feature_call)
+sgRNA_df$group <- NA
+sgRNA_df$group[rowSums(sgRNA_df[,5,drop = FALSE]) == 0 ] <- "negative"
+
+panel <- c('erf_erfl3')
+for(i in 1:nrow(sgRNA_df)){
+  if(is.na(sgRNA_df$group[i])){
+    sgRNA_df$group[i] <- panel[unlist(sgRNA_df[i,5,drop = FALSE])]
+  }
+}
+table(sgRNA_df$group)
+```
+
+```{r}
+seu$sgRNA_group[seu$sample == "p2"] <- "erf_erfl3"
+```
+
+
+## read guide data -p3
+
+```{r}
+sgRNA_df <- read.csv("perturb_seq/cellranger_ccb/output/p3/outs/crispr_analysis/protospacer_calls_per_cell.csv")
+table(sgRNA_df$feature_call)[order(table(sgRNA_df$feature_call), decreasing = T)][1:10]
+```
+
+```{r}
+sgRNA_df$mitfa <- NA
+sgRNA_df$mitfa <- grepl("mitfa", sgRNA_df$feature_call)
+sgRNA_df$tfec <- NA
+sgRNA_df$tfec <- grepl("tfec", sgRNA_df$feature_call)
+sgRNA_df$rarga <- NA
+sgRNA_df$rarga <- grepl("rarga", sgRNA_df$feature_call)
+sgRNA_df$rxraa <- NA
+sgRNA_df$rxraa <- grepl("rxraa", sgRNA_df$feature_call)
+sgRNA_df$nr2f5 <- NA
+sgRNA_df$nr2f5 <- grepl("nr2f5", sgRNA_df$feature_call)
+
+sgRNA_df$group <- NA
+sgRNA_df$group[rowSums(sgRNA_df[,5:9]) > 1] <- "multiplet"
+sgRNA_df$group[rowSums(sgRNA_df[,5:9]) == 0 ] <- "negative"
+panel <- c('mitfa','tfec','rarga','rxraa','nr2f5')
+for(i in 1:nrow(sgRNA_df)){
+  if(is.na(sgRNA_df$group[i])){
+    sgRNA_df$group[i] <- panel[unlist(sgRNA_df[i,5:9])]
+  }
+  
+}
+table(sgRNA_df$group)
+```
+
+```{r}
+sgRNA_df$cell_barcode <- paste0("p3_",sgRNA_df$cell_barcode)
+sgRNA_df <- sgRNA_df[sgRNA_df$cell_barcode %in% colnames(seu), ]
+table(sgRNA_df$group)
+```
+
+```{r}
+seu$sgRNA_group[match(sgRNA_df$cell_barcode, colnames(seu))] <- sgRNA_df$group
+table(seu$sgRNA_group)
+```
+
+
+
+## read perturb results - p5
+
+```{r}
+# etv2 (60); fli1a/elk3 (64); tfec/mitfa/bhlhe40 (50), unscreened
+sgRNA_df <- read.csv("perturb_seq/cellranger/output/p5/outs/crispr_analysis/protospacer_calls_per_cell.csv")
+table(sgRNA_df$feature_call)[order(table(sgRNA_df$feature_call), decreasing = T)][1:10]
+```
+
+```{r}
+sgRNA_df$tfec_mitfa_bhlhe40 <- NA
+sgRNA_df$tfec_mitfa_bhlhe40 <- grepl("mitfa", sgRNA_df$feature_call) |  grepl("tfec", sgRNA_df$feature_call)|  grepl("bhlhe40", sgRNA_df$feature_call)
+sgRNA_df$fli1a_elk3 <- NA
+sgRNA_df$fli1a_elk3 <- grepl("fli1a", sgRNA_df$feature_call) | grepl("elk3", sgRNA_df$feature_call)
+sgRNA_df$etv2 <- NA
+sgRNA_df$etv2 <- grepl("etv2", sgRNA_df$feature_call) 
+
+sgRNA_df$group <- "multiplet"
+sgRNA_df$group[ sgRNA_df$tfec_mitfa_bhlhe40 & !sgRNA_df$fli1a_elk3 & !sgRNA_df$etv2] <- "tfec_mitfa_bhlhe40"
+sgRNA_df$group[!sgRNA_df$tfec_mitfa_bhlhe40 &  sgRNA_df$fli1a_elk3 & !sgRNA_df$etv2] <- "fli1a_elk3"
+sgRNA_df$group[!sgRNA_df$tfec_mitfa_bhlhe40 & !sgRNA_df$fli1a_elk3 &  sgRNA_df$etv2] <- "etv2"
+sgRNA_df$group[!sgRNA_df$tfec_mitfa_bhlhe40 & !sgRNA_df$fli1a_elk3 & !sgRNA_df$etv2] <- "negative"
+table(sgRNA_df$group)
+```
+
+
+```{r}
+sgRNA_df$cell_barcode <- paste0("p5_",sgRNA_df$cell_barcode)
+sgRNA_df <- sgRNA_df[sgRNA_df$cell_barcode %in% colnames(seu), ]
+table(sgRNA_df$group)
+```
+
+```{r}
+seu$sgRNA_group[match(sgRNA_df$cell_barcode, colnames(seu))] <- sgRNA_df$group
+table(seu$sgRNA_group)
+```
+
+## read guide data - p6
+
+```{r}
+sgRNA_df <- read.csv("perturb_seq/cellranger/output/p6/outs/crispr_analysis/protospacer_calls_per_cell.csv")
+table(sgRNA_df$feature_call)[order(table(sgRNA_df$feature_call), decreasing = T)][1:10]
+```
+
+```{r}
+sgRNA_df$mitfa_tfec <- NA
+sgRNA_df$mitfa_tfec <- grepl("mitfa", sgRNA_df$feature_call) |  grepl("tfec", sgRNA_df$feature_call)
+sgRNA_df$elk3 <- NA
+sgRNA_df$elk3 <- grepl("elk3", sgRNA_df$feature_call)
+
+sgRNA_df$group <- NA
+sgRNA_df$group[rowSums(sgRNA_df[,5:6]) > 1] <- "multiplet"
+sgRNA_df$group[rowSums(sgRNA_df[,5:6]) == 0 ] <- "negative"
+panel <- c('mitfa_tfec','elk3')
+for(i in 1:nrow(sgRNA_df)){
+  if(is.na(sgRNA_df$group[i])){
+    sgRNA_df$group[i] <- panel[unlist(sgRNA_df[i,5:6])]
+  }
+}
+table(sgRNA_df$group)
+```
+
+
+```{r}
+sgRNA_df$cell_barcode <- paste0("p6_",sgRNA_df$cell_barcode)
+sgRNA_df <- sgRNA_df[sgRNA_df$cell_barcode %in% colnames(seu), ]
+table(sgRNA_df$group)
+```
+
+```{r}
+seu$sgRNA_group[match(sgRNA_df$cell_barcode, colnames(seu))] <- sgRNA_df$group
+table(seu$sgRNA_group)
+```
+
+## read guide data - p8
+
+```{r}
+sgRNA_df <- read.csv("perturb_seq/cellranger/output/p8/outs/crispr_analysis/protospacer_calls_per_cell.csv")
+table(sgRNA_df$feature_call)[order(table(sgRNA_df$feature_call), decreasing = T)][1:10]
+```
+
+```{r}
+sgRNA_df$mitfa_tfec_tfeb <- NA
+sgRNA_df$mitfa_tfec_tfeb <- grepl("mitfa", sgRNA_df$feature_call) |  grepl("tfec", sgRNA_df$feature_call)|  grepl("tfeb", sgRNA_df$feature_call)
+sgRNA_df$fli1a_etv2 <- NA
+sgRNA_df$fli1a_etv2 <- grepl("fli1a", sgRNA_df$feature_call) |  grepl("etv2", sgRNA_df$feature_call)
+
+sgRNA_df$group <- NA
+sgRNA_df$group[rowSums(sgRNA_df[,5:6]) > 1] <- "multiplet"
+sgRNA_df$group[rowSums(sgRNA_df[,5:6]) == 0 ] <- "negative"
+panel <- c('mitfa_tfec_tfeb','fli1a_etv2')
+for(i in 1:nrow(sgRNA_df)){
+  if(is.na(sgRNA_df$group[i])){
+    sgRNA_df$group[i] <- panel[unlist(sgRNA_df[i,5:6])]
+  }
+}
+table(sgRNA_df$group)
+```
+
+
+```{r}
+sgRNA_df$cell_barcode <- paste0("p8_",sgRNA_df$cell_barcode)
+sgRNA_df <- sgRNA_df[sgRNA_df$cell_barcode %in% colnames(seu), ]
+table(sgRNA_df$group)
+```
+
+```{r}
+seu$sgRNA_group[match(sgRNA_df$cell_barcode, colnames(seu))] <- sgRNA_df$group
+table(seu$sgRNA_group)
+```
+
+
+## read guide data - p9
+
+```{r}
+sgRNA_df <- read.csv("perturb_seq/cellranger/output/p9/outs/crispr_analysis/protospacer_calls_per_cell.csv")
+table(sgRNA_df$feature_call)[order(table(sgRNA_df$feature_call), decreasing = T)][1:10]
+```
+
+```{r}
+sgRNA_df$fli1a_etv2 <- NA
+sgRNA_df$fli1a_etv2 <- grepl("fli1a", sgRNA_df$feature_call) |  grepl("etv2", sgRNA_df$feature_call)
+sgRNA_df$smarcc1a <- NA
+sgRNA_df$smarcc1a <- grepl("smarcc1a", sgRNA_df$feature_call)
+sgRNA_df$control <- NA
+sgRNA_df$control <- grepl("Cherry", sgRNA_df$feature_call)
+
+sgRNA_df$group <- NA
+sgRNA_df$group[rowSums(sgRNA_df[,5:7]) > 1] <- "multiplet"
+sgRNA_df$group[rowSums(sgRNA_df[,5:7]) == 0 ] <- "negative"
+panel <- c('fli1a_etv2','smarcc1a','control')
+for(i in 1:nrow(sgRNA_df)){
+  if(is.na(sgRNA_df$group[i])){
+    sgRNA_df$group[i] <- panel[unlist(sgRNA_df[i,5:7])]
+  }
+}
+table(sgRNA_df$group)
+```
+
+
+```{r}
+sgRNA_df$cell_barcode <- paste0("p9_",sgRNA_df$cell_barcode)
+sgRNA_df <- sgRNA_df[sgRNA_df$cell_barcode %in% colnames(seu), ]
+table(sgRNA_df$group)
+```
+
+```{r}
+seu$sgRNA_group[match(sgRNA_df$cell_barcode, colnames(seu))] <- sgRNA_df$group
+table(seu$sgRNA_group)
+```
+
+## read guide data - p10
+
+```{r}
+sgRNA_df <- read.csv("perturb_seq/cellranger/output/p10/outs/crispr_analysis/protospacer_calls_per_cell.csv")
+table(sgRNA_df$feature_call)[order(table(sgRNA_df$feature_call), decreasing = T)][1:10]
+```
+
+```{r}
+sgRNA_df$fli1a <- NA
+sgRNA_df$fli1a <- grepl("fli1a", sgRNA_df$feature_call)
+sgRNA_df$elk3 <- NA
+sgRNA_df$elk3 <- grepl("elk3", sgRNA_df$feature_call)
+sgRNA_df$erf <- NA
+sgRNA_df$erf <- grepl("erf", sgRNA_df$feature_call)
+
+sgRNA_df$group <- NA
+sgRNA_df$group[rowSums(sgRNA_df[,5:7]) > 1] <- "multiplet"
+sgRNA_df$group[rowSums(sgRNA_df[,5:7]) == 0 ] <- "negative"
+panel <- c('fli1a','elk3','erf')
+for(i in 1:nrow(sgRNA_df)){
+  if(is.na(sgRNA_df$group[i])){
+    sgRNA_df$group[i] <- panel[unlist(sgRNA_df[i,5:7])]
+  }
+}
+table(sgRNA_df$group)
+```
+
+
+```{r}
+sgRNA_df$cell_barcode <- paste0("p10_",sgRNA_df$cell_barcode)
+sgRNA_df <- sgRNA_df[sgRNA_df$cell_barcode %in% colnames(seu), ]
+table(sgRNA_df$group)
+```
+
+```{r}
+seu$sgRNA_group[match(sgRNA_df$cell_barcode, colnames(seu))] <- sgRNA_df$group
+table(seu$sgRNA_group)
+```
+
+
+
+
+## read guide data - p11
+
+```{r}
+sgRNA_df <- read.csv("perturb_seq/cellranger/output/p11/outs/crispr_analysis/protospacer_calls_per_cell.csv")
+table(sgRNA_df$feature_call)[order(table(sgRNA_df$feature_call), decreasing = T)][1:10]
+```
+
+```{r}
+sgRNA_df$control <- NA
+sgRNA_df$control <- grepl("Cherry", sgRNA_df$feature_call) 
+sgRNA_df$elk3 <- NA
+sgRNA_df$elk3 <- grepl("elk3", sgRNA_df$feature_call)
+sgRNA_df$ebf3a <- NA
+sgRNA_df$ebf3a <- grepl("ebf3a", sgRNA_df$feature_call)
+sgRNA_df$elf1 <- NA
+sgRNA_df$elf1 <- grepl("elf1", sgRNA_df$feature_call)
+sgRNA_df$ets1 <- NA
+sgRNA_df$ets1 <- grepl("ets1", sgRNA_df$feature_call)
+sgRNA_df$nr2f2 <- NA
+sgRNA_df$nr2f2 <- grepl("nr2f2", sgRNA_df$feature_call)
+
+sgRNA_df$group <- NA
+sgRNA_df$group[rowSums(sgRNA_df[,5:10]) > 1] <- "multiplet"
+sgRNA_df$group[rowSums(sgRNA_df[,5:10]) == 0 ] <- "negative"
+panel <- c('control','elk3',"ebf3a","elf1","ets1","nr2f2")
+for(i in 1:nrow(sgRNA_df)){
+  if(is.na(sgRNA_df$group[i])){
+    sgRNA_df$group[i] <- panel[unlist(sgRNA_df[i,5:10])]
+  }
+}
+table(sgRNA_df$group)
+```
+
+
+```{r}
+sgRNA_df$cell_barcode <- paste0("p11_",sgRNA_df$cell_barcode)
+sgRNA_df <- sgRNA_df[sgRNA_df$cell_barcode %in% colnames(seu), ]
+table(sgRNA_df$group)
+```
+
+```{r}
+seu$sgRNA_group[match(sgRNA_df$cell_barcode, colnames(seu))] <- sgRNA_df$group
+table(seu$sgRNA_group)
+```
+
+# QC
+
+```{r, fig.width=15, fig.height=4}
+VlnPlot(seu, features = c("nFeature_RNA", "nCount_RNA", "percent.mt"),group.by = "sgRNA_group", ncol = 3, pt.size = 0)
+```
+
+```{r, fig.width=12, fig.height=4}
+VlnPlot(seu, features = c("nFeature_RNA", "nCount_RNA", "percent.mt"),group.by = "sample", ncol = 3, pt.size = 0)
+```
+
+```{r}
+saveRDS(seu, "perturb_seq/analysis/clustering/output_p1top11/seu_all_clustered.rds")
+```
+
+# Technical
+
+```{r}
+sessionInfo()
+```

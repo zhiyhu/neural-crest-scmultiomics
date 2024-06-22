@@ -1,0 +1,218 @@
+---
+title: "Clustering NC perturb-seq data (singlet only)"
+date: "2023-11-22  (last modified: `r Sys.Date()`)"
+output:
+  prettydoc::html_pretty:
+    theme: architect
+    highlight: github
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+library(dplyr)
+library(Seurat)
+library(RColorBrewer)
+library(scales)
+library(ggplot2)
+library(cowplot)
+stage_cols <- RColorBrewer::brewer.pal("Spectral", n = 11)
+genotype_cols <- RColorBrewer::brewer.pal("Set2", n = 8)[c(1,2,3,8)]
+sample_cols <- RColorBrewer::brewer.pal("Accent", n = 8)
+doublet_cols <- RColorBrewer::brewer.pal("Paired", n = 8)[c(6,8,2)]
+col.ls <- c(ArchR::ArchRPalettes$stallion, ArchR::ArchRPalettes$bear) # archR color palettes
+names(col.ls) <- NULL
+```
+
+
+```{r}
+seu <- readRDS("perturb_seq/analysis/clustering/output_p1top11/seu_all_clustered.rds")
+seu@meta.data <- readRDS("perturb_seq/analysis/preprocessing/rds/seu_allcells_doubletFinder.rds")
+```
+
+```{r}
+DimPlot(seu, group.by = "DoubletFinder", reduction = "tsne")
+```
+
+# filter by doubletfinder results
+
+```{r}
+seu <- seu[,seu$DoubletFinder == "Singlet"]
+```
+
+# Seurat pipeline of singlet GEX data
+
+```{r, fig.width=12, fig.height=5}
+DefaultAssay(seu) <- "RNA"
+seu <- NormalizeData(seu, normalization.method = "LogNormalize", scale.factor = 10000)
+seu <- FindVariableFeatures(seu, selection.method = "vst", nfeatures = 2000)
+
+# Identify the 10 most highly variable genes
+top10 <- head(VariableFeatures(seu), 10)
+
+# plot variable features with and without labels
+plot1 <- VariableFeaturePlot(seu)
+plot2 <- LabelPoints(plot = plot1, points = top10, repel = TRUE)
+plot1 + plot2
+```
+
+```{r}
+all.genes <- rownames(seu)
+seu <- ScaleData(seu, features = all.genes)
+seu <- RunPCA(seu, features = VariableFeatures(object = seu))
+# Examine and visualize PCA results a few different ways
+print(seu[["pca"]], dims = 1:5, nfeatures = 5)
+```
+
+```{r}
+DimPlot(seu, reduction = "pca", group.by = "sample")
+```
+
+```{r}
+ElbowPlot(seu, ndims = 50)
+```
+
+```{r}
+seu <- FindNeighbors(seu, dims = 1:20, k.param = 7)
+seu <- FindClusters(seu, resolution = 1)
+# If you haven't installed UMAP, you can do so via reticulate::py_install(packages =
+# 'umap-learn')
+seu <- RunTSNE(seu, dims = 1:20)
+```
+
+## Clustering results
+
+```{r}
+DimPlot(seu, label = TRUE, reduction = "tsne",cols = alpha(col.ls, 0.3))
+```
+
+```{r}
+DimPlot(seu, label = FALSE, reduction = "tsne", 
+        group.by = "sample", cols = alpha(col.ls, 0.3))
+```
+
+# Integration
+
+## read multiome data
+
+```{r}
+multiome <- readRDS("multiome/analysis_newref/clustering/rds/seuobj_rna/seu_RNAsoupx64340_clustered.rds")
+multiome$cell_type <- NA
+
+# Neural crest
+multiome$cell_type[multiome$seurat_clusters == 0] <- "neural crest"
+multiome$cell_type[multiome$seurat_clusters == 2] <- "neural crest mutant"
+multiome$cell_type[multiome$seurat_clusters == 5] <- "neural crest"
+multiome$cell_type[multiome$seurat_clusters == 6] <- "neural crest early"
+multiome$cell_type[multiome$seurat_clusters == 14] <- "neural crest"
+multiome$cell_type[multiome$seurat_clusters == 15] <- "neural crest"
+multiome$cell_type[multiome$seurat_clusters == 19] <- "neural crest"
+multiome$cell_type[multiome$seurat_clusters == 21] <- "neural crest pigment"
+multiome$cell_type[multiome$seurat_clusters == 24] <- "neural crest low-feature"
+# posterior cluster
+multiome$cell_type[multiome$seurat_clusters == 7] <- "notocord1"
+multiome$cell_type[multiome$seurat_clusters == 12] <- "notocord2"
+multiome$cell_type[multiome$seurat_clusters == 9] <- "mutant low-feature"
+multiome$cell_type[multiome$seurat_clusters == 23] <- "hatching gland"
+
+# tail bud
+multiome$cell_type[multiome$seurat_clusters ==4] <- "tailbud - PSM & spinal cord"
+multiome$cell_type[multiome$seurat_clusters ==3] <- "tailbud - PSM"
+multiome$cell_type[multiome$seurat_clusters ==16] <- "tailbud - PSM (myotome)"
+multiome$cell_type[multiome$seurat_clusters ==20] <- "tailbud - PSM (muscle - myl10)"
+
+# neural 
+multiome$cell_type[multiome$seurat_clusters == 1] <- "neural - midbrain"
+multiome$cell_type[multiome$seurat_clusters == 8] <- "spinal cord & neurons"
+multiome$cell_type[multiome$seurat_clusters == 13] <- "neural - diencephalon"
+multiome$cell_type[multiome$seurat_clusters == 27] <- "differentiating neurons"
+
+# unclassified
+multiome$cell_type[multiome$seurat_clusters == 17] <- "unclassified1"
+
+# outer clusters
+multiome$cell_type[multiome$seurat_clusters == 18] <- "pluripotent"
+
+multiome$cell_type[multiome$seurat_clusters == 10] <- "mesoderm mixed"
+multiome$cell_type[multiome$seurat_clusters == 11] <- "epidermal"
+multiome$cell_type[multiome$seurat_clusters == 22] <- "endothelial"
+multiome$cell_type[multiome$seurat_clusters == 25] <- "erythroid"
+
+multiome$cell_type[multiome$seurat_clusters == 26] <- "periderm"
+multiome$cell_type[multiome$seurat_clusters == 28] <- "pronephric duct"
+
+nc_metadata <- readRDS("multiome/analysis_newref/clustering/rds/metadata/seu_RNAsoupx_NC_metadata.rds")
+multiome$cell_type[match(rownames(nc_metadata), colnames(multiome))] <- nc_metadata$cell_type
+```
+
+## Run rpca
+
+```{r}
+seu$proj <- "perturbseq"
+multiome$proj <-  "multiome"
+# normalize and identify variable features for each dataset independently
+ifnb.list <- lapply(X = list(multiome, seu), FUN = function(x) {
+    x <- NormalizeData(x)
+    x <- FindVariableFeatures(x, selection.method = "vst", nfeatures = 2000)
+})
+
+# select features that are repeatedly variable across datasets for integration run PCA on each
+# dataset using these features
+features <- SelectIntegrationFeatures(object.list = ifnb.list)
+ifnb.list <- lapply(X = ifnb.list, FUN = function(x) {
+    x <- ScaleData(x, features = features, verbose = FALSE)
+    x <- RunPCA(x, features = features, verbose = FALSE)
+})
+```
+
+```{r}
+seu.anchors <- FindIntegrationAnchors(object.list = ifnb.list, anchor.features = features, reduction = "rpca")
+# this command creates an 'integrated' data assay
+seu.combined <- IntegrateData(anchorset = seu.anchors)
+```
+
+```{r}
+# specify that we will perform downstream analysis on the corrected data note that the
+# original unmodified data still resides in the 'RNA' assay
+DefaultAssay(seu.combined) <- "integrated"
+
+# Run the standard workflow for visualization and clustering
+seu.combined <- ScaleData(seu.combined, verbose = FALSE)
+seu.combined <- RunPCA(seu.combined, npcs = 30, verbose = FALSE)
+seu.combined <- RunUMAP(seu.combined, reduction = "pca", dims = 1:30)
+seu.combined <- FindNeighbors(seu.combined, reduction = "pca", dims = 1:30)
+seu.combined$old_seurat_clusters <- seu.combined$seurat_clusters
+seu.combined <- FindClusters(seu.combined, resolution = 0.5)
+```
+
+```{r, fig.width=12, fig.height=5}
+# Visualization
+p1 <- DimPlot(seu.combined, reduction = "umap", group.by = "proj", raster=FALSE)
+p2 <- DimPlot(seu.combined, reduction = "umap", group.by = "seurat_clusters", label = TRUE,
+    repel = TRUE, raster=FALSE)
+p1 + p2
+```
+
+```{r, fig.width=12, fig.height=12}
+DimPlot(seu.combined[,seu.combined$proj == "multiome"], reduction = "umap", group.by = "cell_type", label = TRUE, repel = TRUE, raster=FALSE)+NoLegend()
+```
+
+```{r}
+DimPlot(seu.combined, reduction = "umap", group.by = "proj", raster=FALSE)
+```
+
+```{r, fig.width=12, fig.height=5}
+DimPlot(seu.combined, reduction = "umap", group.by = "old_seurat_clusters", split.by = "proj", label = TRUE, raster=FALSE)
+```
+
+# Save data
+
+```{r}
+saveRDS(seu, "perturb_seq/analysis/clustering/output_p1top11/seu_allsinglets_clustered.rds")
+```
+
+# Technical
+
+```{r}
+sessionInfo()
+```
+

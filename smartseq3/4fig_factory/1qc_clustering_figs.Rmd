@@ -1,0 +1,379 @@
+---
+title: "1 qc and clustering figs"
+author: "Zhiyuan Hu"
+date: "2024-01-11 (last modified: `r Sys.Date()`)"
+output: 
+  prettydoc::html_pretty:
+    theme: architect
+    highlight: github
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+
+library(Seurat)
+library(patchwork)
+library(dplyr)
+library(ggplot2)
+library(RColorBrewer)
+library(cowplot)
+my_cols = brewer.pal(8,"Dark2")
+stage_cols <- RColorBrewer::brewer.pal("Spectral", n = 10)
+stage_cols_ss3 <- stage_cols[c(10,9,8,7,2,3,5,6)]
+genotype_cols <- RColorBrewer::brewer.pal("Set2", n = 8)[c(1,3,2,8)]
+cols8 <- RColorBrewer::brewer.pal("Set3", n = 8)
+
+col.ls <- c(ArchR::ArchRPalettes$stallion, ArchR::ArchRPalettes$bear) # archR color palettes
+names(col.ls) <- NULL
+```
+
+```{r}
+figdir <- "/home/huzhiy/projects_ox/smartseq3_nc/analysis/fig_factory/figures/1qc_clustering"
+```
+
+
+# Read data
+
+```{r read_data}
+nc <- readRDS("../../preprocessing/rds/clustered_nc_all_batches1to8.rds")
+dim(nc)
+# nc.markers <- read.csv("../results/nc.markers_8batches_20220825.csv")
+```
+
+
+# QC plot
+
+```{r}
+p1 <- VlnPlot(nc, features = c("nFeature_RNA"), group.by = "Stage", pt.size = 0, cols = stage_cols_ss3) +
+  geom_boxplot(width = 0.1) + ylim(0, 11000)+ NoLegend()
+p2 <- VlnPlot(nc, features = c("nCount_RNA"), group.by = "Stage", pt.size = 0, cols = stage_cols_ss3) + 
+  geom_boxplot(width = 0.1)+ NoLegend()
+p3 <- VlnPlot(nc, features = c("percent.mt"), group.by = "Stage", pt.size = 0, cols = stage_cols_ss3) + 
+  geom_boxplot(width = 0.1) + ylim(0, 20) + NoLegend()
+plot_grid(p1, p2, p3, ncol = 3)
+```
+
+```{r}
+plot_grid(p1, p2, p3, ncol = 3)
+ggsave(paste0(figdir,"/basic_qc.pdf"), width = 8, height = 4)
+```
+
+# DimRed plot
+
+## All cells
+
+```{r}
+seu_annotated <- readRDS("/home/huzhiy/projects_ox/smartseq3_nc/analysis/integration/data/ss3_allcells_labeltransfered.rds")
+dim(seu_annotated)
+```
+
+```{r}
+seu_doubletfiltered <- readRDS("/home/huzhiy/projects_ox/smartseq3_nc/analysis/preprocessing/rds/seuobj/nc_all_doubletFiltered_clustered.rds")
+dim(seu_doubletfiltered)
+```
+
+
+```{r}
+seu_annotated <- seu_annotated[,colnames(nc)]
+nc$predicted.id <- seu_annotated$predicted.id
+```
+
+```{r}
+nc$predicted.id.broad <- nc$predicted.id
+nc$predicted.id.broad[grep("tailbud",nc$predicted.id.broad)]  <- "tailbud - PSM"
+nc$predicted.id.broad[grep("mNC",nc$predicted.id.broad)]  <- "mNC"
+nc$predicted.id.broad[grep("NPB",nc$predicted.id.broad)]  <- "NPB"
+nc$predicted.id.broad[grep("Pigment",nc$predicted.id.broad)]  <- "Pigment"
+nc$predicted.id.broad[grep("Mutant",nc$predicted.id.broad)]  <- "Mutant_NC"
+
+```
+
+
+
+
+
+```{r, fig.width=8, fig.height=5}
+DimPlot(nc, group.by = "predicted.id.broad", label = T, cols = col.ls, label.size = 3)
+
+```
+
+```{r, fig.width=9, fig.height=4}
+p1 <- DimPlot(nc, label = T, cols = col.ls, label.size = 3)
+p2 <- DimPlot(nc, label = T, group.by = "Genotype", cols = genotype_cols, label.size = 3)
+p1 + p2
+```
+
+```{r}
+table(nc$predicted.id.broad, nc$seurat_clusters)
+```
+
+
+```{r}
+nc$cell_type <- NA
+
+nc$cell_type[nc$seurat_clusters == 0] <- "Mutant NC"
+nc$cell_type[nc$seurat_clusters == 1] <- "Tailbud - PSM"
+nc$cell_type[nc$seurat_clusters == 2] <- "Neural"
+nc$cell_type[nc$seurat_clusters == 3] <- "NC"
+nc$cell_type[nc$seurat_clusters == 4] <- "Tailbud - PSM"
+nc$cell_type[nc$seurat_clusters == 5] <- "NC"
+nc$cell_type[nc$seurat_clusters == 6] <- "Notochord"
+nc$cell_type[nc$seurat_clusters == 7] <- "NPB_dNC"
+nc$cell_type[nc$seurat_clusters == 8] <- "Tailbud - PSM"
+nc$cell_type[nc$seurat_clusters == 9] <- "NPB_dNC"
+
+nc$cell_type[nc$seurat_clusters == 10] <- "Spinal cord & neurons"
+nc$cell_type[nc$seurat_clusters == 11] <- "Pigment"
+nc$cell_type[nc$seurat_clusters == 12] <- "Neural - diencephalon"
+nc$cell_type[nc$seurat_clusters == 13] <- "NC trunk"
+nc$cell_type[nc$seurat_clusters == 14] <- "Tailbud - PSM"
+nc$cell_type[nc$seurat_clusters == 15] <- "Tailbud - PSM"
+nc$cell_type[nc$seurat_clusters == 16] <- "mNC_mesoderm"
+
+nc$cell_type[nc$seurat_clusters == 17] <- "Notochord"
+nc$cell_type[nc$seurat_clusters == 18] <- "differentiating neurons"
+nc$cell_type[nc$seurat_clusters == 19] <- "Tailbud - PSM"
+
+```
+
+
+## All cells - doublet filtered
+
+### QC plot
+
+```{r}
+VlnPlot(seu_doubletfiltered, features = c("nFeature_RNA"), pt.size = 0, group.by = "DoubletFinder",cols = "grey90") + geom_boxplot(width = 0.1) + ylim(0, 11000)+ NoLegend()
+ggsave(paste0(figdir, "/ss3_allCells_doubletFiltered_vlnPlot_nFeatureQC.pdf"), width = 1.2, height = 4)
+```
+
+
+```{r}
+p1 <- VlnPlot(seu_doubletfiltered, features = c("nFeature_RNA"), group.by = "Stage", pt.size = 0, cols = stage_cols_ss3) + geom_boxplot(width = 0.1) + ylim(0, 11000)+ NoLegend()
+p2 <- VlnPlot(seu_doubletfiltered, features = c("nCount_RNA"), group.by = "Stage", pt.size = 0, cols = stage_cols_ss3) + geom_boxplot(width = 0.1)+ NoLegend()
+p3 <- VlnPlot(seu_doubletfiltered, features = c("percent.mt"), group.by = "Stage", pt.size = 0, cols = stage_cols_ss3) + geom_boxplot(width = 0.1) + ylim(0, 20) + NoLegend()
+plot_grid(p1, p2, p3, ncol = 3)
+ggsave(paste0(figdir, "/ss3_allCells_doubletFiltered_vlnPlot_basicQC.pdf"), width = 9, height = 4)
+```
+
+```{r}
+seu_doubletfiltered$cell_type <- nc$cell_type[match(colnames(seu_doubletfiltered), colnames(nc))]
+```
+
+```{r, fig.width=5, fig.height=5}
+p1 <- DimPlot(seu_doubletfiltered, reduction = "umap",
+        cols = col.ls, label.size = 3,  label = TRUE) + NoLegend() + labs(title = "")
+ggsave(paste0(figdir, "/nc_allcells_doubletfiltered_umap.pdf"), p1, width = 5, height = 5)
+print (p1)
+```
+
+```{r, fig.width=5, fig.height=4}
+DimPlot(seu_doubletfiltered, reduction = "umap",group.by = "cell_type", 
+        cols = col.ls, label.size = 3,  label = TRUE) + NoLegend() + labs(title = "")
+```
+
+```{r}
+seu_doubletfiltered$broad_cell_type <- NA
+seu_doubletfiltered$broad_cell_type[seu_doubletfiltered$seurat_clusters %in% c(1) ] <- "Mutant NC"
+seu_doubletfiltered$broad_cell_type[seu_doubletfiltered$seurat_clusters %in% c(2,8) ] <- "Early NC"
+seu_doubletfiltered$broad_cell_type[seu_doubletfiltered$seurat_clusters %in% c(15) ] <- "Pigment"
+seu_doubletfiltered$broad_cell_type[seu_doubletfiltered$seurat_clusters %in% c(11) ] <- "NC trunk"
+seu_doubletfiltered$broad_cell_type[seu_doubletfiltered$seurat_clusters %in% c(5,21,10,6) ] <- "NC"
+seu_doubletfiltered$broad_cell_type[seu_doubletfiltered$seurat_clusters %in% c(20) ] <- "Differentiating neurons"
+seu_doubletfiltered$broad_cell_type[seu_doubletfiltered$seurat_clusters %in% c(18, 13) ] <- "Notochord"
+seu_doubletfiltered$broad_cell_type[seu_doubletfiltered$seurat_clusters %in% c(9) ] <- "Spinal cord & neurons"
+seu_doubletfiltered$broad_cell_type[seu_doubletfiltered$seurat_clusters %in% c(4,14,23,17) ] <- "Neural"
+seu_doubletfiltered$broad_cell_type[seu_doubletfiltered$seurat_clusters %in% c(3,12,0,7,22,16,19) ] <- "Tailbud - PSM"
+
+```
+
+```{r, fig.width=5, fig.height=5}
+col_ls_bct <- col.ls[10:19]
+names(col_ls_bct) <- c("Mutant NC", "Early NC", "Pigment", "NC trunk", "NC", "Differentiating neurons",
+                       "Notochord", "Spinal cord & neurons", "Neural", "Tailbud - PSM")
+p1 <- DimPlot(seu_doubletfiltered, reduction = "umap",group.by = "broad_cell_type", 
+        cols = col_ls_bct, label.size = 3,  label = TRUE) + NoLegend() + labs(title = "")
+ggsave(paste0(figdir,"/ss3_allcells_doubletfiltered_umap_broadCellType.pdf"), p1,width = 5, height = 5)
+print(p1)
+```
+
+
+```{r}
+p1 <- DimPlot(nc, reduction = "umap",group.by = "cell_type", 
+              cols = col.ls, label.size = 3,  label = TRUE) + NoLegend() + labs(title = "")
+ggsave(paste0(figdir,"/ss3all_cells_umap.pdf"), width = 5, height = 5)
+```
+
+## NC only
+
+```{r}
+outputdir="/home/huzhiy/projects_ox/multiome/analysis_newref/integration/data/"
+
+seu.integrated <- readRDS(paste0(outputdir, "integrated/NC_cca_ss3_mulitome.rds"))
+# ncall <- readRDS("/home/huzhiy/projects_ox/multiome/analysis_newref/integration/data/ss3/nc_anterior_seuobj_batches1to8.rds")
+ncall <- seu.integrated[,seu.integrated$method ==  "Smart-seq3"]
+```
+
+```{r}
+# Make a set of data.frames to keep track during cluster assignment.
+clusters <- length(unique(ncall$seurat_clusters))
+cluster.assignments <- data.frame(
+  cluster=(1:clusters)-1,
+  name=rep(NA, clusters),
+  row.names=(1:clusters)-1
+)
+
+cluster.assignments["0","name"] <- "dNC_nohox"
+cluster.assignments["5","name"] <- "NPB_nohox"
+cluster.assignments["6","name"] <- "Mutant_nohox_early"
+cluster.assignments["15","name"] <- "NPB_hox2"
+
+cluster.assignments["12","name"] <- "dNC_hoxa2b"
+cluster.assignments["14","name"] <- "NPB_hox3"
+cluster.assignments["16","name"] <- "dNC_hox34"
+cluster.assignments["17","name"] <- "NC_trunk"
+
+
+cluster.assignments["8","name"] <- "Mutant_hox23"
+cluster.assignments["11","name"] <- "Mutant_nohox_12_22ss"
+cluster.assignments["1","name"] <- "Mutant_nohox_pigment"
+
+cluster.assignments["10","name"] <- "mNC_vagal"
+cluster.assignments["13","name"] <- "mNC_hox34"
+cluster.assignments["3","name"] <- "Pigment"
+cluster.assignments["2","name"] <- "mNC_nohox"
+cluster.assignments["9","name"] <- "mNC_arch2"
+
+cluster.assignments["4","name"] <- "mNC_arch1"
+
+cluster.assignments["7","name"] <- "mNC_head_mesenchymal"
+```
+
+```{r}
+dim(ncall)
+```
+
+
+```{r}
+DefaultAssay(ncall) <- "RNA"
+
+ncall <- RunTSNE(ncall)
+ncall@meta.data$cell_type <- NA
+ncall@meta.data$cell_type <- cluster.assignments$name[match(ncall$seurat_clusters, cluster.assignments$cluster)]
+
+DimPlot(ncall, label = T, group.by = "cell_type",
+        reduction = "tsne", cols = col.ls, pt.size = 1, label.size = 1,
+        repel = T)
+```
+
+```{r}
+ncall2 <- readRDS("/home/huzhiy/projects_ox/smartseq3_nc/analysis/clustering/data/nc_anterior_seuobj_batches1to8.rds")
+ncall2@reductions[["tsne"]]@cell.embeddings[,2] <- -ncall2@reductions[["tsne"]]@cell.embeddings[,2]
+dim(ncall2)
+```
+
+```{r, fig.width=12, fig.height=5}
+ncall2$predicted.id <- ncall$cell_type[match(colnames(ncall2), colnames(ncall))]
+p1 <- DimPlot(ncall2, label = T, group.by = "predicted.id",
+        reduction = "tsne", cols = col.ls, pt.size = 1, label.size = 3,
+        repel = T)
+p2 <- DimPlot(ncall2, label = T, group.by = "seurat_clusters",
+        reduction = "tsne", cols = col.ls, pt.size = 1, label.size = 3,
+        repel = T)
+p1 + p2
+```
+
+
+
+
+
+
+### stage and genotype
+
+```{r, fig.width=12, fig.height=5}
+p1 <- DimPlot(ncall2, label =F, group.by = "Genotype_new",
+        reduction = "tsne", cols = genotype_cols[c(3,1)], pt.size = 1, 
+        repel = T)
+p2 <- DimPlot(ncall2, label = F,  group.by = "Stage",
+        reduction = "tsne", cols = stage_cols_ss3[2:7], pt.size = 1, label.size = 3,
+        repel = T)
+p1 + p2
+ggsave(paste0(figdir,"/nc_tsne_genotype_and_stage.pdf"), width = 9, height = 4)
+```
+
+```{r, fig.width=12, fig.height=5}
+p1 <- DimPlot(ncall2, label =F, group.by = "Genotype_new",
+        reduction = "tsne", pt.size = 1, 
+        cells.highlight = colnames(ncall2)[ncall2$Genotype_new == "wt"],
+        cols.highlight = genotype_cols[c(1)])
+p2 <- DimPlot(ncall2, label =F, group.by = "Genotype_new",
+        reduction = "tsne", pt.size = 1, 
+        cells.highlight = colnames(ncall2)[ncall2$Genotype_new == "mut"],
+        cols.highlight = genotype_cols[c(3)])
+p1 + p2
+
+ggsave(paste0(figdir,"/nc_tsne_highlightedByGenotype.pdf"), width = 9, height = 4)
+```
+
+### Batch
+
+```{r}
+DimPlot(ncall2, label =F, group.by = "Batch",
+        reduction = "tsne", pt.size = 1, cols = col.ls)
+ggsave(paste0(figdir,"/nc_tsne_batch.pdf"), width = 4.5, height = 4)
+```
+
+
+### cell type
+
+```{r}
+col_ct <- read.csv("/home/huzhiy/projects_ox/multiome/analysis_newref/clustering/figures/for_pre/df_coloursUserd.csv", row.names = 1)
+col_ct  <- rbind(col_ct , c("Pigment","diff","#9A77B8"))
+col_ct  <- rbind(col_ct , c("Mutant_hox23","Mutant","#CDABC0"))
+col_ct  <- rbind(col_ct , c("Mutant_nohox_pigment","Mutant","#CAB2D6"))
+# col_ct$cell_type <- factor(col_ct$cell_type, levels = col_ct$cell_type)
+col_ct <- col_ct[col_ct$cell_type %in% ncall2$predicted.id,]
+```
+
+```{r, fig.width=5, fig.height=5}
+cols <- col_ct$colour
+names(cols) <- col_ct$cell_type
+# plot the NC cell type
+p1 <- DimPlot(ncall2, label = T, group.by = "predicted.id",
+        reduction = "tsne", cols = cols, pt.size = 2, label.size = 3,
+        repel = T)  + labs(title = "") + NoLegend()
+ggsave(paste0(figdir,"/ncall_cellType_tsne.pdf"), p1, width = 5, height = 5)
+print(p1)
+```
+
+
+
+<!-- ## NC wt -->
+
+<!-- ```{r} -->
+<!-- nc_wt <- readRDS( "/home/huzhiy/projects_ox/smartseq3_nc/analysis/clustering/rds/nc_wt_seuobj_batches1to8.rds") -->
+<!-- nc_wt$predicted.id <- ncall@meta.data$cell_type[match(colnames(nc_wt), colnames(ncall))] -->
+<!-- ``` -->
+
+
+
+
+<!-- ```{r, fig.width=12, fig.height=4} -->
+<!-- p1 <- DimPlot(nc_wt, group.by = "predicted.id", label = TRUE, reduction = "tsne") -->
+<!-- p2 <- DimPlot(nc_wt, group.by = "seurat_clusters", label = TRUE, reduction = "tsne") -->
+<!-- p1 + p2 -->
+<!-- ``` -->
+
+<!-- ```{python} -->
+
+
+<!-- ``` -->
+
+# Technical
+
+```{r}
+sessionInfo()
+```
+
+
+
+

@@ -1,0 +1,185 @@
+---
+title: "QC all cells - not SoupX corrected"
+author: "Zhiyuan Hu"
+date: '2023 Nov 29 (last modified: `r Sys.Date()`)'
+output:
+  prettydoc::html_pretty:
+    theme: architect
+    highlight: github
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+library(dplyr)
+library(patchwork)
+library(Seurat)
+library(RColorBrewer)
+library(scales)
+library(ggplot2)
+library(cowplot)
+stage_cols <- RColorBrewer::brewer.pal("Spectral", n = 11)
+genotype_cols <- RColorBrewer::brewer.pal("Set2", n = 8)[c(1,2,3,8)]
+sample_cols <- RColorBrewer::brewer.pal("Accent", n = 8)
+doublet_cols <- RColorBrewer::brewer.pal("Paired", n = 8)[c(6,8,2)]
+col.ls <- c(ArchR::ArchRPalettes$stallion, ArchR::ArchRPalettes$bear) # archR color palettes
+names(col.ls) <- NULL
+```
+
+# Read data
+
+```{r read data}
+counts <- Read10X("perturb_seq/cellranger_ccb/output/p1/outs/filtered_feature_bc_matrix/")
+seu1 <- CreateSeuratObject(
+  counts = counts$`Gene Expression`,
+  assay = "RNA"
+)
+seu1 <- RenameCells(seu1, new.names = paste0("p1_",colnames(seu1)))
+seu1$sample <- "p1"
+
+counts <- Read10X("perturb_seq/cellranger/output/p2/outs/filtered_feature_bc_matrix/")
+seu2 <- CreateSeuratObject(
+  counts = counts$`Gene Expression`,
+  assay = "RNA", sample = "p2"
+)
+seu2 <- RenameCells(seu2, new.names = paste0("p2_",colnames(seu2)))
+seu2$sample <- "p2"
+seu <- merge(seu1, y = seu2)
+
+counts <- Read10X("perturb_seq/cellranger_ccb/output/p3/outs/filtered_feature_bc_matrix/")
+seu2 <- CreateSeuratObject(
+  counts = counts$`Gene Expression`,
+  assay = "RNA", sample = "p3"
+)
+seu2 <- RenameCells(seu2, new.names = paste0("p3_",colnames(seu2)))
+seu2$sample <- "p3"
+seu <- merge(seu, y = seu2)
+
+counts <- Read10X("perturb_seq/cellranger/output/p5/outs/filtered_feature_bc_matrix/")
+seu2 <- CreateSeuratObject(
+  counts = counts$`Gene Expression`,
+  assay = "RNA"
+)
+seu2 <- RenameCells(seu2, new.names = paste0("p5_",colnames(seu2)))
+seu2$sample <- "p5"
+seu <- merge(seu, y = seu2)
+
+counts <- Read10X("perturb_seq/cellranger/output/p6/outs/filtered_feature_bc_matrix/")
+seu2 <- CreateSeuratObject(
+  counts = counts$`Gene Expression`,
+  assay = "RNA"
+)
+seu2 <- RenameCells(seu2, new.names = paste0("p6_",colnames(seu2)))
+seu2$sample <- "p6"
+seu <- merge(seu, y = seu2)
+
+counts <- Read10X("perturb_seq/cellranger/output/p8/outs/filtered_feature_bc_matrix/")
+seu2 <- CreateSeuratObject(
+  counts = counts$`Gene Expression`,
+  assay = "RNA"
+)
+seu2 <- RenameCells(seu2, new.names = paste0("p8_",colnames(seu2)))
+seu2$sample <- "p8"
+seu <- merge(seu, y = seu2)
+head(colnames(seu ))
+
+counts <- Read10X("perturb_seq/cellranger/output/p9/outs/filtered_feature_bc_matrix/")
+seu2 <- CreateSeuratObject(
+  counts = counts$`Gene Expression`,
+  assay = "RNA"
+)
+seu2 <- RenameCells(seu2, new.names = paste0("p9_",colnames(seu2)))
+seu2$sample <- "p9"
+seu <- merge(seu, y = seu2)
+
+counts <- Read10X("perturb_seq/cellranger/output/p10/outs/filtered_feature_bc_matrix/")
+seu2 <- CreateSeuratObject(
+  counts = counts$`Gene Expression`,
+  assay = "RNA"
+)
+seu2 <- RenameCells(seu2, new.names = paste0("p10_",colnames(seu2)))
+seu2$sample <- "p10"
+seu <- merge(seu, y = seu2)
+
+counts <- Read10X("perturb_seq/cellranger/output/p11/outs/filtered_feature_bc_matrix/")
+seu2 <- CreateSeuratObject(
+  counts = counts$`Gene Expression`,
+  assay = "RNA"
+)
+seu2 <- RenameCells(seu2, new.names = paste0("p11_",colnames(seu2)))
+seu2$sample <- "p11"
+seu <- merge(seu, y = seu2)
+head(colnames(seu))
+```
+
+```{r}
+table(seu$sample)
+```
+
+```{r}
+rm(seu1, seu2)
+gc()
+```
+
+# QC
+
+```{r percent.mt, fig.width=8, fig.height=3.5}
+DefaultAssay(seu) <- "RNA"
+seu[["percent.mt"]] <- PercentageFeatureSet(seu, pattern = "^mt-")
+VlnPlot(
+  object = seu,
+  features = c("nCount_RNA",  "nFeature_RNA", "percent.mt"),
+  ncol = 3, 
+  pt.size = 0
+)
+```
+
+```{r FeatureScatter-qc,fig.width=7, fig.height=3}
+plot1 <- FeatureScatter(seu, feature1 = "nCount_RNA", feature2 = "percent.mt", pt.size = 0.1)
+plot2 <- FeatureScatter(seu, feature1 = "nCount_RNA", feature2 = "nFeature_RNA", pt.size = 0.1)
+plot1 + plot2
+```
+
+
+```{r}
+seu_corrected <- readRDS("perturb_seq/analysis/clustering/output_p1top11/seu_allsinglets_clustered.rds")
+```
+
+```{r}
+seu <- seu[,colnames(seu) %in% colnames(seu_corrected)]
+```
+
+```{r}
+all(colnames(seu) == colnames(seu_corrected))
+seu@meta.data <- cbind(seu@meta.data, seu_corrected@meta.data[,6:9])
+```
+
+```{r}
+saveRDS(seu, "perturb_seq/analysis/preprocessing/rds/seu_rawCounts_allcells.rds")
+```
+
+# subset for NC
+
+```{r}
+seu_NC <- readRDS("perturb_seq/analysis/clustering/output_p1top11/seu_NC_clustered.rds")
+table(colnames(seu) %in% colnames(seu_NC))
+```
+
+```{r}
+seu <- seu[,colnames(seu) %in% colnames(seu_NC)]
+```
+
+```{r}
+all(colnames(seu) == colnames(seu_NC))
+seu@meta.data <- cbind(seu@meta.data, seu_NC@meta.data[,6:11])
+```
+
+```{r}
+saveRDS(seu, "perturb_seq/analysis/preprocessing/rds/seu_rawCounts_NC.rds")
+```
+
+# technical
+
+```{r}
+sessionInfo()
+```
+
