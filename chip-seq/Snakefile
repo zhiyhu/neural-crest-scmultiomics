@@ -1,0 +1,311 @@
+
+configfile: "config.yaml"
+
+from os.path import join
+from os.path import exists
+
+# load cluster config file
+CLUSTER = json.load(open(config['CLUSTER_JSON']))
+FILES = json.load(open(config['SAMPLES_JSON']))
+
+SAMPLES=config["sampleList"]
+ALL_SAMPLES=SAMPLES
+
+# which sample_type is used as control for calling peaks: e.g. Input, IgG...
+CONTROLS = config["controlList"]
+
+
+CASES = config["citList"] + config["dpList"]
+ALL_SAMPLES = CASES + CONTROLS
+
+## list BAM files
+CONTROL_BAM = expand("data/03aln/{sample}.sorted.bam", sample=CONTROLS)
+CASE_BAM = expand("data/03aln/{sample}.sorted.bam", sample=CASES)
+
+## peaks and bigwigs
+ALL_PEAKS = []
+ALL_inputSubtract_BIGWIG = []
+
+for case in config["citList"]:
+    control = "IgG-cit"
+    if control in CONTROLS:
+        ALL_PEAKS.append("data/09peak_macs2/{}_vs_{}_macs2_peaks.xls".format(case, control))
+        ALL_inputSubtract_BIGWIG.append("data/06bigwig_inputSubtract/{}_subtract_{}.bw".format(case, control))
+
+
+for case in config["dpList"]:
+    control = "IgG-dp"
+    if control in CONTROLS:
+        ALL_PEAKS.append("data/09peak_macs2/{}_vs_{}_macs2_peaks.xls".format(case, control))
+        ALL_inputSubtract_BIGWIG.append("data/06bigwig_inputSubtract/{}_subtract_{}.bw".format(case, control))
+
+for case in CASES:
+    control = "input-cit"
+    if control in CONTROLS:
+        ALL_PEAKS.append("data/09peak_macs2/{}_vs_{}_macs2_peaks.xls".format(case, control))
+        ALL_inputSubtract_BIGWIG.append("data/06bigwig_inputSubtract/{}_subtract_{}.bw".format(case, control))
+
+
+ALL_BAM     = CONTROL_BAM + CASE_BAM
+ALL_FASTQC  = expand("data/02fqc/{sample}_{direction}_fastqc.zip", sample = ALL_SAMPLES, direction=["R1","R2"])
+ALL_INDEX = expand("data/03aln/{sample}.sorted.bam.bai", sample = ALL_SAMPLES)
+ALL_DOWNSAMPLE_INDEX = expand("data/04aln_downsample/{sample}-downsample.sorted.bam.bai", sample = ALL_SAMPLES)
+ALL_FLAGSTAT = expand("data/03aln/{sample}.sorted.bam.flagstat", sample = ALL_SAMPLES)
+ALL_BIGWIG = expand("data/07bigwig/{sample}.bw", sample = ALL_SAMPLES)
+ALL_QC = ["data/10multiQC/data/multiQC_log.html"]
+
+
+TARGETS = []
+TARGETS.extend(ALL_FASTQC)
+TARGETS.extend(ALL_BAM)
+TARGETS.extend(ALL_INDEX)
+TARGETS.extend(ALL_PEAKS)
+TARGETS.extend(ALL_BIGWIG)
+TARGETS.extend(ALL_inputSubtract_BIGWIG)
+TARGETS.extend(ALL_FLAGSTAT)
+TARGETS.extend(ALL_QC)
+
+
+rule all: 
+    input:
+        TARGETS
+
+
+rule merge_read1:
+    output:
+        temp("data/01seq/{sample}_R1.fastq.gz")
+    log:    "data/00log/{sample}_R1_merge"
+    threads: CLUSTER["merge_fastqs"]["cpu"]
+    params: jobname = "{sample}"   
+    shell:
+        """
+        cat data/fastq/{wildcards.sample}_S*_L001_R1_001.fastq.gz \
+        data/fastq/{wildcards.sample}_S*_L002_R1_001.fastq.gz \
+        data/fastq/{wildcards.sample}_S*_L003_R1_001.fastq.gz \
+        data/fastq/{wildcards.sample}_S*_L004_R1_001.fastq.gz > {output} 2> {log}
+        """
+
+rule merge_read2:
+    output:
+        temp("data/01seq/{sample}_R2.fastq.gz")
+    log:    "data/00log/{sample}_R2_merge"
+    threads: CLUSTER["merge_fastqs"]["cpu"]
+    params: jobname = "{sample}"    
+    shell:
+        """
+        cat data/fastq/{wildcards.sample}_S*_L001_R2_001.fastq.gz \
+        data/fastq/{wildcards.sample}_S*_L002_R2_001.fastq.gz \
+        data/fastq/{wildcards.sample}_S*_L003_R2_001.fastq.gz \
+        data/fastq/{wildcards.sample}_S*_L004_R2_001.fastq.gz > {output} 2> {log}
+        """
+
+rule fastqc:
+    input:  "data/01seq/{sample}.fastq.gz"
+    output: "data/02fqc/{sample}_fastqc.zip", "data/02fqc/{sample}_fastqc.html"
+    log:    "data/00log/{sample}_fastqc"
+    threads: CLUSTER["fastqc"]["cpu"]
+    params : jobname = "{sample}"
+    message: "fastqc {input}: {threads}"
+    shell:
+        """
+        module load fastqc/0.11.9
+        fastqc -o data/02fqc -f fastq --noextract {input} 2> {log}
+        """
+
+rule trim:
+    input:  
+        fq1="data/01seq/{sample}_R1.fastq.gz", 
+        fq2="data/01seq/{sample}_R2.fastq.gz"
+    output: temp("data/trimmed/{sample}_R1_val_1.fq.gz"), temp("data/trimmed/{sample}_R2_val_2.fq.gz")
+    threads: 1
+    params:
+            jobname = "{sample}"
+    message: "trimming {input}: {threads} threads"
+    log: "data/00log/{sample}.trim"
+    shell:
+        """
+        module load trim_galore/0.6.5
+        trim_galore --gzip --cores 4 -o data/trimmed \
+        --paired {input}  2> {log}
+        """
+
+
+## use bowtie1 for alignmet; remove duplicates; sort and same to bam
+rule align:
+    input:  
+        fq1="data/trimmed/{sample}_R1_val_1.fq.gz", 
+        fq2="data/trimmed/{sample}_R2_val_2.fq.gz"
+    output: "data/03aln/{sample}.sorted.bam", "data/00log/{sample}.align"
+    threads: CLUSTER["align"]["cpu"]
+    params:
+            bowtie = "--no-discordant --no-mixed -q ",
+            jobname = "{sample}"
+    message: "aligning {input}: {threads} threads"
+    log:
+        bowtie = "data/00log/{sample}.align",
+        markdup = "data/00log/{sample}.markdup"
+    shell:
+        """
+        module load samblaster/0.1.24
+        module load bowtie2/2.4.2
+        module load samtools/1.10
+
+        bowtie2 {params.bowtie} -p {threads} -x {config[idx_bt2]} -1 {input.fq1} -2 {input.fq2}  2> {log.bowtie} \
+        | samblaster --removeDups \
+        | samtools view -Sb -F 4 - \
+        | samtools sort -m 2G -@ {threads} -T {output[0]}.tmp -o {output[0]} 2> {log.markdup}
+        """
+
+rule index_bam:
+    input:  "data/03aln/{sample}.sorted.bam"
+    output: "data/03aln/{sample}.sorted.bam.bai"
+    log:    "data/00log/{sample}.index_bam"
+    threads: 1
+    params: jobname = "{sample}"
+    message: "index_bam {input}: {threads} threads"
+    shell:
+        """
+        module load samtools/1.10
+        samtools index {input} 2> {log}
+        """
+
+# check number of reads mapped by samtools flagstat, the output will be used for downsampling
+rule flagstat_bam:
+    input:  "data/03aln/{sample}.sorted.bam"
+    output: "data/03aln/{sample}.sorted.bam.flagstat"
+    log:    "data/00log/{sample}.flagstat_bam"
+    threads: 1
+    params: jobname = "{sample}"
+    message: "flagstat_bam {input}: {threads} threads"
+    shell:
+        """
+        module load samtools/1.10
+        samtools flagstat {input} > {output} 2> {log}
+        """
+
+## found a replacement in bioconda https://bioconda.github.io/recipes/phantompeakqualtools/README.html
+## to be modified
+rule phantom_peak_qual:
+    input: "data/03aln/{sample}.sorted.bam", "data/03aln/{sample}.sorted.bam.bai"
+    output: "data/05phantompeakqual/{sample}_phantom.txt"
+    log: "data/00log/{sample}_phantompeakqual.log"
+    threads: 4
+    params: jobname = "{sample}"
+    message: "phantompeakqual for {input}"
+    shell:
+        """
+        source /home/z/zhu/miniconda3/etc/profile.d/conda.sh
+        source /home/z/zhu/miniconda3/bin/activate
+        conda activate phantompeakqualtools
+        Rscript  /t1-data/project/tsslab/zhu/.conda/pkgs/phantompeakqualtools-1.2.2-hdfd78af_1/bin/run_spp.R \
+        -c={input[0]} -savp -rf -p=4 -odir=05phantompeakqual  -out={output} -tmpdir=05phantompeakqual 2> {log}
+        conda deactivate
+        conda deactivate
+        """
+
+rule make_inputSubtract_bigwigs:
+    input: 
+        "data/03aln/{control}.sorted.bam", 
+        "data/03aln/{case}.sorted.bam", 
+        "data/03aln/{control}.sorted.bam.bai", 
+        "data/03aln/{case}.sorted.bam.bai"
+    output:  "data/06bigwig_inputSubtract/{case}_subtract_{control}.bw"
+    log: "data/00log/{case}_{control}_inputSubtract.makebw"
+    threads: 5
+    params: jobname = "{case}_{control}"
+    message: "making input subtracted bigwig for {input}"
+    shell:
+        """
+        module load deeptools/current 
+        bamCompare --bamfile1 {input[1]} --bamfile2 {input[0]} --normalizeUsing RPKM --scaleFactorsMethod None \
+        --operation subtract --binSize 30 --smoothLength 300 -p 5  --extendReads 200 -o {output} 2> {log}
+        """
+
+rule make_bigwigs:
+    input : 
+        "data/03aln/{sample}.sorted.bam", 
+        "data/03aln/{sample}.sorted.bam.bai"
+    output: "data/07bigwig/{sample}.bw"
+    log: "data/00log/{sample}.makebw"
+    threads: 5
+    params: jobname = "{sample}"
+    message: "making bigwig for {input}"
+    shell:
+        """
+        module load deeptools/current 
+        bamCoverage -b {input[0]} --normalizeUsing RPKM --binSize 30 --smoothLength 300 -p 5 --extendReads 200 -o {output} 2> {log}
+        """
+
+rule call_peaks_macs2:
+    input: 
+        control = "data/03aln/{control}.sorted.bam", 
+        case="data/03aln/{case}.sorted.bam"
+    output: 
+        bed = "data/09peak_macs2/{case}_vs_{control}_macs2_peaks.xls",
+        broadPeaks = "data/09peak_macs2/{case}_vs_{control}_macs2_peaks.broadPeak"
+    log: "data/00log/{case}_vs_{control}_call_peaks_macs2.log"
+    params:
+        name = "{case}_vs_{control}_macs2",
+        jobname = "{case}"
+    message: "call_peaks macs2 {input}: {threads} threads"
+    shell:
+        """
+        module load python-base/3.8.3 
+        module load python-cbrg
+        ## for macs2, when nomodel is set, --extsize is default to 200bp, this is the same as 2 * shift-size in macs14.
+        macs2 callpeak -t {input.case} \
+            -c {input.control} --keep-dup all -f BAMPE -g {config[macs2_g]} \
+            --outdir data/09peak_macs2 -n {params.name} -p {config[macs2_pvalue]} --broad --broad-cutoff {config[macs2_pvalue_broad]} --nomodel &> {log}
+        """
+
+rule annotate_peaks_homer:
+    input: 
+        peaks="data/09peak_macs2/{case}_vs_{control}_macs2_peaks.broadPeak"
+    output: "data/09peak_macs2/{case}_vs_{control}_macs2_peaks.broadPeak_annot.txt"
+    log: "data/00log/{case}_vs_{control}_annotate_peaks_homer.log"
+    params:
+        name = "{case}_vs_{control}_homer",
+        jobname = "{case}"
+    message: "annotate_peaks hommer {input}: {threads} threads"
+    shell:
+        """
+        module load homer/20201202
+        annotatePeaks.pl {input.peaks} danRer11 > {output} &> {log}
+        """
+
+rule multiQC:
+    input :
+        expand("data/00log/{sample}.align", sample = ALL_SAMPLES),
+        expand("data/03aln/{sample}.sorted.bam.flagstat", sample = ALL_SAMPLES),
+        expand("data/02fqc/{sample}_R1_fastqc.zip", sample = ALL_SAMPLES),
+        expand("data/02fqc/{sample}_R2_fastqc.zip", sample = ALL_SAMPLES)
+    output: "data/10multiQC/data/multiQC_log.html"
+    log: "data/00log/multiqc.log"
+    message: "multiqc for all logs"
+    shell:
+        """
+        module load python-base/3.10.7
+        module load python-cbrg/202212
+        multiqc data/02fqc data/03aln data/00log -o data/10multiQC -d -f -v -n data/multiQC_log 2> {log}
+        """
+
+rule bam2bed:
+    input :
+        "data/03aln/{sample}.sorted.bam"
+    output:
+        "data/12bed/{sample}.bed"
+    params: jobname = "{sample}"
+    log: "data/00log/{sample}_bam2bed.log"
+    message: "converting bam to bed for {input}"
+    shell:
+        """
+        bedtools bamtobed -i {input} > {output}
+        """
+
+
+## Zhiyuan HU
+## 4 Dec 2022
+## last modified 5 Dec 2022
+## Refer to https://github.com/crazyhottommy/pyflow-ChIPseq/blob/master/Snakefile
+
+

@@ -15,9 +15,8 @@
 # reference chrombpnet biorxiv
 
 eval "$(conda shell.bash hook)"
-conda activate /home/huzhiy/miniforge3/envs/gimme
+conda activate gimme
 
-wkdir=/home/huzhiy/projects_ox/multiome/analysis_newref
 MEMEFILE=${wkdir}/chrombpnet/data/14motif_analysis/clustered_motifs.meme
 DBMOTIF=${wkdir}/GRN_scenicplus/data/motif_with_newm/TOMTOM/all.dbs.meme
 TOMOUT=${wkdir}/chrombpnet/data/14motif_analysis/tomtom/clustered_motifs_vs_daniocode_with_newm.txt

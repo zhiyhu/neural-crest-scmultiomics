@@ -10,8 +10,6 @@
 # 17 Oct 2023
 # last modified 17 Oct 2023
 
-
-
 module load samtools/1.18
 
 # mNC_arch1 mNC_arch2 mNC_head_mesenchymal mNC_hox34 mNC_nohox mNC_vagal Mutant_hox2 Mutant_nohox_12_22ss 
@@ -21,6 +19,6 @@ module load samtools/1.18
 for cluster in dNC_hoxa2b dNC_nohox_cycling NPB_nohox   #  
 do
 samtools merge -@ 8 \
-               -r /home/huzhiy/projects_ox/multiome/analysis_newref/chrombpnet/data/03merged_bam/${cluster}.bam \
-               /home/huzhiy/projects_ox/multiome/analysis_newref/chrombpnet/data/02split_bam/*/*${cluster}.bam
+               -r chrombpnet/data/03merged_bam/${cluster}.bam \
+               chrombpnet/data/02split_bam/*/*${cluster}.bam
 done

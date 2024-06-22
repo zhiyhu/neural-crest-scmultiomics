@@ -12,20 +12,13 @@
 ## last modified 28 Dec 2023
 
 eval "$(conda shell.bash hook)"
-conda activate /home/huzhiy/miniforge3/envs/chrombpnet
+conda activate chrombpnet
 
-wkdir=/home/huzhiy/projects_ox/multiome/analysis_newref/chrombpnet
 PFMall=${wkdir}/data/13motif_pfm/concatnated/all_pfm.txt
 meme2meme ${wkdir}/data/13motif_pfm/*.txt > $PFMall # merge all pfm to one file
-
 conda deactivate
 
-# run this ~/projects_ox/multiome/analysis_newref/chrombpnet/code/convert_meme2pfm.R
-# run this ~/projects_ox/multiome/analysis_newref/chrombpnet/code/convert_meme2pfm.py
-
-conda activate /home/huzhiy/miniforge3/envs/gimme
-
-wkdir=/home/huzhiy/projects_ox/multiome/analysis_newref/chrombpnet
+conda activate gimme
 PFMall=${wkdir}/data/13motif_pfm/concatnated/all_pfm_homerFormat_unique.txt
 
 OUTDIR=${wkdir}/data/14motif_analysis

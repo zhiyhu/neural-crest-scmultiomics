@@ -17,9 +17,8 @@ eval "$(conda shell.bash hook)"
 
 conda activate chrombpnet
 
-cluster=$1  #  mNC_nohox #  # mNC_nohox # Mutant_nohox_12_22ss
+cluster=$1  
 echo $1
-wkdir=/home/huzhiy/projects_ox/multiome/analysis_newref/chrombpnet
 
 model=${wkdir}/data/07chrombpnet_model/${cluster}/models/chrombpnet_nobias.h5
 peaks=${wkdir}/data/04peaks/${cluster}.peaks_no_blacklist_tmp2.bed

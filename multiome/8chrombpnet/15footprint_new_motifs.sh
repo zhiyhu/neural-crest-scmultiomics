@@ -17,10 +17,8 @@ eval "$(conda shell.bash hook)"
 
 conda activate chrombpnet
 
-cluster=$1  #  mNC_nohox #  # mNC_nohox # Mutant_nohox_12_22ss
+cluster=$1  
 echo $cluster
-
-wkdir=/home/huzhiy/projects_ox/multiome/analysis_newref/chrombpnet
 
 model=${wkdir}/data/07chrombpnet_model/${cluster}/models/chrombpnet_nobias.h5
 peaks=${wkdir}/data/04peaks/${cluster}.peaks_no_blacklist.bed
@@ -32,15 +30,14 @@ mkdir ${wkdir}/data/18footprint_new_motifs/${cluster}
 
 module load bedtools/2.31.0 
 bedtools intersect -v -a $peaks \
-                   -b /home/huzhiy/projects_ox/multiome/analysis_newref/chrombpnet/data/18footprint_new_motifs/chrom_start_end_bl.bed  >  \
+                   -b chrombpnet/data/18footprint_new_motifs/chrom_start_end_bl.bed  >  \
                    ${wkdir}/data/18footprint_new_motifs/${cluster}/${cluster}.peaks_filtered_2024march27.bed
 
 chrombpnet footprints -m $model \
                       -r ${wkdir}/data/18footprint_new_motifs/${cluster}/${cluster}.peaks_filtered_2024march27.bed\
                       -g $fa \
                       -fl $fold0 -op $outdir \
-                      -pwm_f  /home/huzhiy/projects_ox/multiome/analysis_newref/chrombpnet/data/18footprint_new_motifs/motif_to_pwm.inhouse.tsv
-                    #   /home/huzhiy/software/chrombpnet/chrombpnet/data/motif_to_pwm.TF.tsv ##
+                      -pwm_f chrombpnet/data/18footprint_new_motifs/motif_to_pwm.inhouse.tsv
 
 conda deactivate
 conda deactivate

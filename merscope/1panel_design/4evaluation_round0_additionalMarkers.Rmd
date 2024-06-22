@@ -1,0 +1,160 @@
+---
+title: "Add more markers to the gene panel v0 -> v1"
+date: "2023-12-04 (last modified: `r Sys.Date()`)"
+output: 
+    prettydoc::html_pretty:
+    theme: architect
+    highlight: github
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+library(dplyr)
+library(Seurat)
+# library(patchwork)
+library(RColorBrewer)
+library(scales)
+library(ggplot2)
+```
+
+# read data and prior results
+
+```{r}
+new_markers <- read.csv("../results/evaluation/panel_v0_round1_additions.csv", header = F)
+panel_v0 <- read.csv("../results/evaluation/panel_v0_round1_evaluation_results.csv")
+```
+
+```{r}
+panel <- data.frame(gene = unique(new_markers$V2) )
+panel <- panel[!panel$gene %in% panel_v0$gene,,drop = F]
+```
+
+```{r}
+receptors <- readRDS("multiome/analysis_newref/STprobe_select/results/cpdb/selected_receptors20231202.rds")
+receptors <- receptors[receptors$expressed,1, drop=F]
+colnames(receptors) <- "gene"
+```
+
+```{r}
+ss3_probeset <- read.csv("multiome/analysis_newref/STprobe_select/results/ss3/probeset.csv")
+multiome_probeset <- read.csv("multiome/analysis_newref/STprobe_select/results/multiome/probeset.csv")
+wagner_probeset <- read.csv("multiome/analysis_newref/STprobe_select/results/wagnerSmall/probeset.csv")
+deg <- read.csv("multiome/analysis_newref/STprobe_select/results/DE/perturb-seq_DEGs_manuallyPicked.csv")
+```
+
+```{r}
+panel$ss3_markers <- ss3_probeset$celltypes_marker[match(panel$gene, ss3_probeset$X)]
+panel$ss3_pca_selected <- ss3_probeset$pca_selected[match(panel$gene, ss3_probeset$X)]
+panel$multiome_markers <- multiome_probeset$celltypes_marker[match(panel$gene, multiome_probeset$X)]
+panel$multiome_pca_sekected <- multiome_probeset$pca_selected[match(panel$gene, multiome_probeset$X)]
+panel$wagner_markers <- wagner_probeset$celltypes_marker[match(panel$gene, wagner_probeset$X)]
+panel$wagner_pca_sekected <- wagner_probeset$pca_selected[match(panel$gene, wagner_probeset$X)]
+panel$receptor <- F
+panel$receptor[panel$gene %in% receptors$gene] <- T
+```
+
+# Smart-seq3 whole dataset
+
+```{r}
+df_fpkm_results_ss3 <- df_fpkm_results <- readRDS("multiome/analysis_newref/STprobe_select/results/fpkm_tpm/ss3_wholeData_splitBySample_fpkm.rds")
+df_fpkm_results <- as.data.frame(df_fpkm_results)
+
+# Add a new column 'Over_500' which is TRUE if any of the 12 columns have a value > 500
+df_fpkm_results$Over_500 <- apply(df_fpkm_results[, 1:12], 1, function(x) any(x > 500))
+panel$Over_500_ss3_fpkm_allcells <- df_fpkm_results$Over_500[match(panel$gene, rownames(df_fpkm_results))]
+table(panel$Over_500_ss3_fpkm_allcells)
+```
+
+# multiome whole dataset
+
+```{r}
+df_fpkm_results_multiome <- df_fpkm_results <- readRDS("multiome/analysis_newref/STprobe_select/results/fpkm_tpm/multiome_wholeData_splitBySample_tpm.rds")
+
+df_fpkm_results <- as.data.frame(df_fpkm_results)
+# Add a new column 'Over_500' which is TRUE if any of the 12 columns have a value > 500
+df_fpkm_results$Over_500 <- apply(df_fpkm_results[, 1:7], 1, function(x) any(x > 1000))
+panel$Over_500_multiome_fpkm_allcells <- df_fpkm_results$Over_500[match(panel$gene, rownames(df_fpkm_results))]
+table(panel$Over_500_multiome_fpkm_allcells)
+```
+
+# wagner Small dataset
+
+```{r}
+df_fpkm_results_wagner <- df_fpkm_results <- readRDS("multiome/analysis_newref/STprobe_select/results/fpkm_tpm/wagnerSmall_splitBySample_tpm.rds")
+
+df_fpkm_results <- as.data.frame(df_fpkm_results)
+# Add a new column 'Over_500' which is TRUE if any of the 12 columns have a value > 500
+df_fpkm_results$Over_500 <- apply(df_fpkm_results[, 1:3], 1, function(x) any(x > 1000))
+panel$Over_500_wagner_fpkm_allcells <- df_fpkm_results$Over_500[match(panel$gene, rownames(df_fpkm_results))]
+table(panel$Over_500_wagner_fpkm_allcells)
+```
+
+```{r}
+panel$under_500_all <- !(panel$Over_500_ss3_fpkm_allcells | panel$Over_500_multiome_fpkm_allcells | panel$Over_500_wagner_fpkm_allcells)
+table(panel$under_500_all)
+```
+
+```{r}
+panel$prioritised <- FALSE
+panel$prioritised[panel$gene %in% ss3_probeset$X[ss3_probeset$selection == "True"] | 
+                    panel$gene %in% multiome_probeset$X[multiome_probeset$selection== "True"] | 
+                    panel$gene %in% wagner_probeset$X[wagner_probeset$selection== "True"] ] <- TRUE
+table(panel$prioritised )
+```
+
+# check the minimal expression
+
+```{r}
+tmp <- apply(df_fpkm_results_ss3, 1, function(x) all(x < 10))
+panel$under10_ss3 <- tmp[match(panel$gene, names(tmp))]
+
+tmp <- apply(df_fpkm_results_multiome, 1, function(x) all(x < 10))
+panel$under10_multiome <- tmp[match(panel$gene, names(tmp))]
+
+tmp <- apply(df_fpkm_results_wagner, 1, function(x) all(x < 10))
+panel$under10_wagner <- tmp[match(panel$gene, names(tmp))]
+
+panel$under10_all <-  panel$under10_ss3 & panel$under10_multiome & panel$under10_wagner
+table(panel$under10_all)
+```
+
+```{r}
+idx_selected <- panel$under_500_all == TRUE & panel$under10_all == FALSE
+panel$pass_expression_filter <-  idx_selected
+all(rownames(df_fpkm_results_ss3) == panel$gene)
+panel$fpkm_ss3 <- apply(df_fpkm_results_ss3[match(panel$gene, rownames(df_fpkm_results_ss3)),], 1, mean)
+panel$fpkm_multiome <- apply(df_fpkm_results_multiome[match(panel$gene, rownames(df_fpkm_results_multiome)),], 1, mean)
+panel$fpkm_wagner <- apply(df_fpkm_results_wagner[match(panel$gene, rownames(df_fpkm_results_wagner)),], 1, mean)
+```
+
+```{r}
+all(colnames(panel) == colnames(panel_v0))
+```
+
+# check the total fpkm
+
+```{r}
+sum(panel$fpkm_ss3[panel$pass_expression_filter])
+```
+
+```{r}
+sum(panel$fpkm_multiome[panel$pass_expression_filter])
+```
+
+```{r}
+sum(panel$fpkm_wagner[panel$pass_expression_filter])
+```
+
+# save results
+
+```{r}
+write.csv(rbind(panel_v0, panel), "../results/evaluation/panel_v1_with_round1_additions.csv", row.names = FALSE)
+```
+
+# technical
+
+```{r}
+sessionInfo()
+```
+
+

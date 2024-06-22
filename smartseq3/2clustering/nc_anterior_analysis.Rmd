@@ -1,0 +1,178 @@
+---
+title: "Analysis of anterior NC cells only (8 batches)"
+author: "Zhiyuan Hu"
+date: "3 Jun 2022 (last modified: `r Sys.Date()`)"
+output:
+  prettydoc::html_pretty:
+    theme: architect
+    highlight: github
+---
+
+```{r setup, include=TRUE}
+knitr::opts_chunk$set(echo = TRUE)
+library(Seurat)
+library(patchwork)
+library(dplyr)
+library(ggplot2)
+library(RColorBrewer)
+# devtools::install("DoMultiBarHeatmap")
+# library(DoMultiBarHeatmap)
+my_cols <- RColorBrewer::brewer.pal("Spectral", n = 10)
+stage_cols <- RColorBrewer::brewer.pal("Spectral", n = 10)
+stage_cols2 <- stage_cols[c(2,3,5,7,8,9,10)]
+genotype_cols <- RColorBrewer::brewer.pal("Set2", n = 8)[c(1,3,2,8)]
+col.ls <- ArchR::ArchRPalettes$stallion # archR color palettes
+```
+
+```{r}
+knitr::opts_knit$set(root.dir = 'Project_analysis/smartseq3/nc_ss3_analysis/clustering/')
+datadir <- 'Project_analysis/smartseq3/nc_ss3_analysis/preprocessing/'
+workdir <- 'Project_analysis/smartseq3/nc_ss3_analysis/clustering/'
+```
+
+## Preprocessing add Clustering
+
+subset for the anterior NC cells
+
+```{r scale pca}
+ncall <- readRDS(paste0(datadir,"rds/seuobj/nc_all_doubletFiltered_clustered.rds"))
+ncall <- ncall[, ncall$seurat_clusters %in% c(1,2,5,6,8,10,11,15,21)]
+dim(ncall)
+
+ncall <- NormalizeData(ncall)
+ncall <- FindVariableFeatures(ncall, selection.method = "vst", nfeatures = 2000)
+all.genes <- rownames(ncall)
+ncall <- ScaleData(ncall, features = all.genes)
+ncall <- RunPCA(ncall, features = VariableFeatures(object = ncall))
+ElbowPlot(ncall, ndims = 50)
+```
+
+```{r clustering}
+ncall <- FindNeighbors(ncall, dims = 1:20, k.param = 5)
+ncall <- FindClusters(ncall, resolution = 0.5)
+ncall <- RunUMAP(ncall, dims = 1:20, n.neighbors = 5) # , n.epochs = 500, min.dist = 0.5
+ncall <- RunTSNE(ncall, dims = 1:20, n.neighbors = 5) # , n.epochs = 500, min.dist = 0.5
+```
+
+## Visualisation
+
+```{r pca plot, fig.width=15, fig.height=9}
+names(col.ls) <- NULL
+p1 <- PCAPlot(ncall, label = TRUE, cols = alpha(col.ls, 0.66)) 
+p2 <- PCAPlot(ncall, group.by = "Stage", cols = alpha(stage_cols2, 0.66))
+p3 <- UMAPPlot(ncall, label = TRUE, cols = alpha(col.ls, 0.66)) 
+p4 <- UMAPPlot(ncall, group.by = "Stage", cols = alpha(stage_cols2, 0.66))
+p5 <- TSNEPlot(ncall, label = TRUE,  cols = alpha(col.ls, 0.66)) 
+p6 <- TSNEPlot(ncall, group.by = "Stage", cols = alpha(stage_cols2, 0.66))
+p1 + p2 + p3 + p4 + p5 + p6
+```
+
+```{r, fig.width=12, fig.height=4}
+ncall$Genotype_new <- "mix"
+ncall$Genotype_new[ncall$Genotype %in% c("Cit", "Cherry")] <- "wt"
+ncall$Genotype_new[ncall$Genotype %in% c("DP")] <- "mut"
+
+p1 <- TSNEPlot(ncall, label = TRUE, cols = alpha(col.ls, 0.66)) 
+p2 <- TSNEPlot(ncall, group.by = "Stage", cols = alpha(stage_cols2, 0.66))
+p3 <- TSNEPlot(ncall, label = FALSE, group = "Genotype_new") 
+p1 + p2 +p3
+```
+
+```{r, fig.width=9, fig.height=4}
+p1 <- FeaturePlot(ncall, features = c("mcherry_umis"), reduction = "tsne") 
+p2 <- TSNEPlot(ncall, label = FALSE, group = "Genotype")
+cowplot::plot_grid(p1,p2,ncol=2)
+```
+
+```{r}
+knitr::kable(table(ncall$X96wPlate, ncall$Genotype))
+```
+
+```{r, fig.width=12, fig.height=5}
+TSNEPlot(ncall, label = FALSE, group = "X96wPlate") 
+```
+
+```{r proportion-stacked-plot}
+df_prop <- table(ncall$seurat_clusters, ncall$Stage)
+df_prop <- as.data.frame(df_prop)
+colnames(df_prop)[1:2] <- c("cluster", "stage")
+ggplot(df_prop, aes(x = cluster, y = Freq, fill = stage)) + geom_bar(stat = "identity", position = "fill") + 
+  ggplot2::scale_fill_manual(values = stage_cols2) + theme_classic()
+```
+
+```{r, fig.height=5, fig.width=8}
+df <- data.frame(table(ncall$seurat_clusters, ncall$Genotype_new))
+ggplot(df, aes(x = Var1, y = Freq, fill = Var2)) + geom_bar(position = "fill", stat = "identity") + scale_fill_manual(values = alpha(genotype_cols))
+```
+
+```{r pcaplots_by_depth, fig.width=10, fig.height=4}
+FeaturePlot(ncall, features = c("nFeature_RNA","nCount_RNA"), reduction = "tsne") & 
+  scale_colour_gradientn(colours = rev(brewer.pal(n = 11, name = "RdBu")))
+```
+
+```{r dimplots_by_genotype, fig.width=12, fig.height=4}
+p1 <- DimPlot(ncall, reduction = "umap", group.by = "Genotype_new", cols = alpha(genotype_cols[1:4], 1))
+p2 <- DimPlot(ncall, reduction = "tsne", group.by = "Genotype_new", cols = alpha(genotype_cols[1:4], 1))
+p3 <- DimPlot(ncall, reduction = "pca", group.by = "Genotype_new", cols = alpha(genotype_cols[1:4], 1))
+p1+p2+p3
+```
+```{r, fig.width=12, fig.height=8}
+marker_genes <- c("hoxa2b","hoxb2a","hoxb1a","hoxb1b","hoxb3a","hoxa4a","hoxd4a","hoxb7a","hoxb9a","hoxa11b","hoxd12a")
+FeaturePlot(ncall, marker_genes, ncol = 4, reduction = "tsne", pt.size = 0.4)
+```
+
+```{r, fig.width=12, fig.height=8}
+marker_genes <- c("mitfa","col1a1a","col1a1b","col11a1a","gdf11","itga3a","elavl3")
+FeaturePlot(ncall, marker_genes, ncol = 3, reduction = "tsne", pt.size = 0.4)
+```
+
+# Annotation
+
+## Add annotation
+
+# Find marker genes
+
+```{r ncwt_findallmarkers}
+ncwt.markers <- FindAllMarkers(ncall, only.pos = TRUE, min.pct = 0.25, logfc.threshold = 0.25)
+write.csv(ncwt.markers, paste0(workdir, "results/ncall_anterior_batches1to8.markers.csv"))
+ncwt.markers %>% group_by(cluster) %>% top_n(n = 2, wt = avg_log2FC)
+```
+
+```{r, fig.height=10, fig.width=12}
+top5 <- ncwt.markers %>% group_by(cluster) %>% top_n(n = 5, wt = avg_log2FC)
+DoHeatmap(object = ncall, features = top5$gene)
+```
+
+## cell cycle assignment
+
+```{r cellcyclescoring}
+# A list of cell cycle markers, from Tirosh et al, 2015, is loaded with Seurat.  We can
+# segregate this list into markers of G2/M phase and markers of S phase
+s.genes <- tolower(cc.genes$s.genes)
+g2m.genes <- tolower(cc.genes$g2m.genes)
+
+sum(s.genes %in% rownames(ncall))
+sum(g2m.genes%in% rownames(ncall))
+
+ncall <- CellCycleScoring(ncall, s.features = s.genes, g2m.features = g2m.genes, set.ident = TRUE)
+```
+
+```{r, fig.width=12, fig.height=3.5}
+p1 <- UMAPPlot(ncall, group.by = "Phase")
+p2 <- PCAPlot(ncall, group.by = "Phase")
+p3 <- TSNEPlot(ncall, group.by = "Phase")
+p1 + p3 + p2
+```
+
+## Save RDS
+
+```{r}
+saveRDS(ncall, paste0(workdir,"rds/nc_anterior_seuobj_batches1to8.rds"))
+```
+
+## Technical
+
+```{r}
+sessionInfo()
+```
+

@@ -4,9 +4,9 @@
 
 # refer to https://github.com/crazyhottommy/pyflow-scATACseq
 
-datadir <- "/home/huzhiy/projects_ox/multiome/analysis_newref/chrombpnet/data/01prepare"
+datadir <- "chrombpnet/data/01prepare"
 ## use previous clustering results to split bam files
-metadata <- readRDS("/home/huzhiy/projects_ox/multiome/analysis_newref/clustering/rds/metadata/seu_RNAsoupx_NC_metadata.rds")
+metadata <- readRDS("clustering/rds/metadata/seu_RNAsoupx_NC_metadata.rds")
 samples <- unique(metadata$sample_id)
 samples
 

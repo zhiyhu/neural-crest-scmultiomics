@@ -1,81 +1,82 @@
-# Single-cell multiomic study of neural crest
+# A Complete Gene Regulatory Network of the Cranial Neural Crest in Zebrafish: single-cell multi-omic and spatial transcriptomic analysis
 
 This repository contains the code for the following analysis, catelogued by the sub-projects:
-* Multiome
-* Smart-seq3
-* Perturb-seq
-* ChIP-seq
-* Merscope
+* [Multiome (RNA+ATAC)](https://github.com/zhiyhu/neural-crest-scmultiomics?tab=readme-ov-file#10x-multiome-data-analysis)
+* [Smart-seq3](https://github.com/zhiyhu/neural-crest-scmultiomics?tab=readme-ov-file#smart-seq3-data-analysis)
+* [Merscope](https://github.com/zhiyhu/neural-crest-scmultiomics?tab=readme-ov-file#merscope-data-analysis)
+* [Perturb-seq](https://github.com/zhiyhu/neural-crest-scmultiomics?tab=readme-ov-file#perturb-seq-data-analysis)
+* [ChIP-seq](https://github.com/zhiyhu/neural-crest-scmultiomics?tab=readme-ov-file#chip-seq-data-analysis)
 
 ## Citation
 
-To be added
+Zhiyuan Hu, Sarah Mayes, Weixu Wang, José Mariá Santos Perreira, Fabian Theis, Tatjana Sauka-Spengler. A Complete Gene Regulatory Network of the Cranial Neural Crest in Zebrafish (2024).
 
 ## 10x multiome data analysis
 
-### 1 Preprocessing and QC
+The analysis scripts below are located in the `multiome` directory.
 
-* Remove ambient RNA by SoupX: `soupX_all_samples.R`
+### 1 Preprocessing and quality control
+
+* Remove ambient RNA by SoupX: `multiome/1preprocessing/soupX_all_samples.R`
 
 * QC and filtering
-    * `seurat_initialqc_bysample.R`
+    * `multiome/1preprocessing/seurat_initialqc_bysample.R`
     * RNA Doublet filtering: ``
     * Intersect RNA + ATAC good-quality cells: ``
     * Merge objects: ``
 
 ### 2 Clustering and cell type annotation
 
-* Clustering and annotating all cells: 
-    * `1clustering_RNAsoupx_allcells.Rmd`
-    * `2annotate_RNAsoupx_allcells.Rmd`
+* Clustering and annotating all cells
+    * Clustering analysis: `multiome/2clustering/1clustering_RNAsoupx_allcells.Rmd`
+    * Annotation analysis: `multiome/2clustering/2annotate_RNAsoupx_allcells.Rmd`
 
-* Clustering and annotating NC cells: 
-    * `3clustering_RNAsoupx_NC.Rmd` 
-    * `4annotate_RNAsoupx_NC.Rmd`
+* Clustering and annotating NC cells 
+    * Clustering analysis: `multiome/2clustering/3clustering_RNAsoupx_NC.Rmd` 
+    * Annotation analysis: `multiome/2clustering/4annotate_RNAsoupx_NC.Rmd`
 
 ### 3 Genotyping
 
-* Predict genotypes in sample (75% epiboly - 4ss): `amplicon_anlaysis.R`
+* Predict genotypes in sample 75% epiboly-4ss: `multiome/3genotyping/amplicon_anlaysis.R`
 
 ### 4 Integration
 
-* Use Wagner et al (2018) data to annotate multiome all cells: `classification_wagner_multiomeall.R`
-* Integrate multiome, Smart-seq3 and Wagner et al (2018) data: `cca_NC_wagner2018_multiome_SS3.R`
-* Compute inter-group similarity: `NC_Wagner2018_CIDER.R`
+* Use Wagner et al (2018) data to annotate multiome all cells: `multiome/4integration/classification_wagner_multiomeall.R`
+* Integrate multiome, Smart-seq3 and Wagner et al (2018) data: `multiome/4integration/cca_NC_wagner2018_multiome_SS3.R`
+* Compute inter-group similarity: `multiome/4integration/NC_Wagner2018_CIDER.R`
 
 ### 5 ArchR analysis
 
-* Create Arrow files: `archr_createArrow.R`
-* Filter doublet: `archr_filterdoublet.R`
-* Create ArchR project: `archr_createArchRproj.R`
-* Peak calling: `archr_callpeaks.R`
-* Motif enrichment analysis: `anchr_menr.R`
+* Create Arrow files: `multiome/5archr/archr_createArrow.R`
+* Filter doublet: `multiome/5archr/archr_filterdoublet.R`
+* Create ArchR project: `multiome/5archr/archr_createArchRproj.R`
+* Peak calling: `multiome/5archr/archr_callpeaks.R`
+* Motif enrichment analysis: `multiome/5archr/anchr_menr.R`
 
 ### 6 Velocity analysis
 
 #### 6.1 RNA velocity 
 
-* Wild-type NC RNA velocity analysis: `scvelo_wt_uncorrected.py`
-* foxd3-mutant NC RNA velocity analysis: `scvelo_mut_uncorrected.py`
+* Wild-type NC RNA velocity analysis: `multiome/6velocity/RNA_velocity/scvelo_wt_uncorrected.py`
+* foxd3-mutant NC RNA velocity analysis: `multiome/6velocity/RNA_velocity/scvelo_mut_uncorrected.py`
 
 #### 6.2 MultiVelo 
 
-* Annotate peaks: `01homer_annotpeaks.sh` and `01annot_peaks.R`
-* Preprocess ATAC data: `02_1signac_ataccounts.R` and `02_2signac_regionstat.R`
-* Link peaks: `03_1run_linkpeaks.sh`
-* Preprocess RNA data: `04wtnohox_rna_h5ad.R`
-* Prepare ATAC data: `05wtnohox_atac.R`
-* Run MultiVelo: `wtnohox_multivelo_uncorrected.py` and `wtnohox_seurat_wnn.R`
+* Annotate peaks: `multiome/6velocity/multivelo/01homer_annotpeaks.sh` and `multiome/6velocity/multivelo/01annot_peaks.R`
+* Preprocess ATAC data: `multiome/6velocity/multivelo/02_1signac_ataccounts.R` and `multiome/6velocity/multivelo/02_2signac_regionstat.R`
+* Link peaks: `multiome/6velocity/multivelo/03_1run_linkpeaks.sh`
+* Preprocess RNA data: `multiome/6velocity/multivelo/04wtnohox_rna_h5ad.R`
+* Prepare ATAC data: `multiome/6velocity/multivelo/05wtnohox_atac.R`
+* Run MultiVelo: `multiome/6velocity/multivelo/wtnohox_multivelo_uncorrected.py` and `multiome/6velocity/multivelo/wtnohox_seurat_wnn.R`
 
 #### 6.3 RegVelo
 
-* To be added
 
-### 7 GRN 
+### 7 Gene regulatory network (GRN) analysis  
 
 #### 7.1 SCENIC+ analysis (`scenicplus`)
 
-
+* Reconstruct enhancer-drivern gene regulatory network: `multiome/7GRN/scenicplus`
 
 #### 7.2 Regulon functional analysis (`regulon_function`)
 
@@ -112,28 +113,37 @@ To be added
 ### 10 Figure factory
 
 
-
 ## Smart-seq3 data analysis
 
 ### 1 Preprocessing
 
+* Quality check, doublet filtering, clustering, finding marker genes: `smartseq3/1preprocessing/qc_8batches.Rmd`
+
 ### 2 Clustering
+
+* Subset neural crest cells, clustering, and visualisation: `smartseq3/2clustering/nc_anterior_analysis.Rmd`
 
 ### 3 Velocity
 
+* RNA velocity (steady-state model) analysis of Smart-seq3 neural crest data: `smartseq3/3velocity/scvelo_nc01to08_ncwt.ipynb`
+*  RNA velocity (dynamic model) analysis: `smartseq3/3velocity/scvelo_ncwt_highRes.ipynb`
 
-## Merscope data analysis
+## Merscope 
 
 ### 1 panel design
 
-### 2 preprocessing and QC
+* Prepare datasets, run SPARPROS, evaludate the probe set: `merscope/1panel_design`
 
-### 3 clustering and mapping
+### 2 Merscope data analysis
+
+* Merge data, clustering: `merscope/2analysis/1merge_run1_run3.ipynb`
+* Merscope/snRNA-seq mapping by Tangram: `merscope/2analysis/2run1_tangram_merscopeNC_multiomeNC.ipynb` and `merscope/2analysis/2run3_allCells_mapping.ipynb`
+* Spatial visualisation: `merscope/2analysis/3run1_viz_anno20240425.ipynb` and `merscope/2analysis/3run3_viz_anno.ipynb`
 
 ## Perturb-seq data analysis
 
-### 
+### 1 
 
 ## ChIP-seq data analysis
 
-
+* Snake pipeline: `chip-seq/`

@@ -10,17 +10,15 @@
 ## 27 OCT 2023
 ## last modified 26 Dec 2023
 
-# module load cuda/11.2
 eval "$(conda shell.bash hook)"
-conda activate /home/huzhiy/miniforge3/envs/chrombpnet
+conda activate chrombpnet
 
 cluster=$1
 echo $1
-wkdir=/home/huzhiy/projects_ox/multiome/analysis_newref/chrombpnet
 
 input=${wkdir}/data/10tfmodisco/${cluster}/modisco_results_profile.h5
 outdir=${wkdir}/data/12modisco_report/${cluster}
-motifs=/home/huzhiy/projects_ox/multiome/analysis_newref/GRN_scenicplus/data/motif_with_newm/TOMTOM/all.dbs.meme
+motifs=GRN_scenicplus/data/motif_with_newm/TOMTOM/all.dbs.meme
 
 modisco report -i $input -o $outdir  \
         -s $outdir  \

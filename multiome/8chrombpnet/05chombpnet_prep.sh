@@ -17,9 +17,6 @@ eval "$(conda shell.bash hook)"
 
 conda activate chrombpnet
 
-wkdir=/home/huzhiy/projects_ox/multiome/analysis_newref/chrombpnet
-refdir=/home/huzhiy/projects_ox/ref/ensembl105/cellranger_arc/GRCz11_ensembl105_foxd3_cellranger_arc/star
-
 # chrombpnet prep splits
 mkdir ${wkdir}/data/splits
 chrombpnet prep splits -c ${wkdir}/data/ref/GRCz11_ensembl105_foxd3.new.chrom.subset.sizes \
@@ -52,5 +49,3 @@ chrombpnet prep nonpeaks -g $fa \
                          -fl ${wkdir}/data/splits/fold_0.json \
                          -br /home/huzhiy/projects_ox/ref/blacklist/danRer11_blacklist_USCSliftover_2023oct.bed \
                          -o ${wkdir}/data/05output/${cluster}
-
-

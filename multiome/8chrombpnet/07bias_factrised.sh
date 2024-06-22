@@ -15,12 +15,11 @@
 module load cuda/11.2
 eval "$(conda shell.bash hook)"
 
-refdir=/home/huzhiy/projects_ox/ref/ensembl105/cellranger_arc/GRCz11_ensembl105_foxd3_cellranger_arc/star
+refdir=ref/ensembl105/cellranger_arc/GRCz11_ensembl105_foxd3_cellranger_arc/star
 
 conda activate chrombpnet_test
 
-cluster=$1 #  mNC_nohox #  # mNC_nohox # Mutant_nohox_12_22ss
-wkdir=/home/huzhiy/projects_ox/multiome/analysis_newref/chrombpnet
+cluster=$1 
 
 fa=${wkdir}/data/ref/GRCz11_ensembl105_foxd3.new.fa
 chromsizes=${wkdir}/data/ref/GRCz11_ensembl105_foxd3.chrom.sizes
@@ -28,10 +27,8 @@ peaks=${wkdir}/data/04peaks/${cluster}.peaks_no_blacklist.bed
 neg=${wkdir}/data/05output/${cluster}_negatives.bed
 fold0=${wkdir}/data/splits/fold_0.json
 outdir=${wkdir}/data/07chrombpnet_model/${cluster}/
-# sorted_bam=/home/huzhiy/projects_ox/multiome/analysis_newref/chrombpnet/data/03merged_bam/${cluster}_sorted.bam
-bmod=/home/huzhiy/projects_ox/multiome/analysis_newref/chrombpnet/data/06bias_model/${cluster}_gputest/models/${cluster}_bias.h5
-new_bam=/home/huzhiy/projects_ox/multiome/analysis_newref/chrombpnet/data/03merged_bam/${cluster}_new.bam
-
+bmod=chrombpnet/data/06bias_model/${cluster}_gputest/models/${cluster}_bias.h5
+new_bam=chrombpnet/data/03merged_bam/${cluster}_new.bam
 
 chrombpnet pipeline \
         -ibam $new_bam \
@@ -43,4 +40,3 @@ chrombpnet pipeline \
         -fl $fold0 \
         -b $bmod \
         -o $outdir
-

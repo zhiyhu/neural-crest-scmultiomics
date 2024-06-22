@@ -15,7 +15,7 @@
 ## /ceph/home/z/zhu/t1data/multiome/analysis_newref/GRN_scenicplus/ncall_2023oct_ccb/code/3create_cisTarget_databases.sh
 
 ## Prior condition:
-### 1.Run ~/Library/CloudStorage/OneDrive-Nexus365/Postdoc-TSSlab/Project_analysis/multiome/analysis_newref/GRN_scenicplus/ncall/code/prepare_motif2tf.R
+### 1.Run Project_analysis/multiome/analysis_newref/GRN_scenicplus/ncall/code/prepare_motif2tf.R
 ### 2.Run /Filers/home/z/zhu/t1data/multiome/analysis_newref/GRN_scenicplus/motif_process/code/prepare_cbuster_motifs_newm.py
 
 proj=ncall_2023oct_ccb

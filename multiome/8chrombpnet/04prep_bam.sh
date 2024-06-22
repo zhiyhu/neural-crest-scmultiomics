@@ -11,22 +11,19 @@
 
 eval "$(conda shell.bash hook)"
 
-wkdir=/home/huzhiy/projects_ox/multiome/analysis_newref/chrombpnet
-refdir=/home/huzhiy/projects_ox/ref/ensembl105/cellranger_arc/GRCz11_ensembl105_foxd3_cellranger_arc/star
-
 conda activate chrombpnet
 
 cluster=$1
 
 echo $cluster
 
-bam=/home/huzhiy/projects_ox/multiome/analysis_newref/chrombpnet/data/03merged_bam/${cluster}.bam
-new_bam=/home/huzhiy/projects_ox/multiome/analysis_newref/chrombpnet/data/03merged_bam/${cluster}_new.bam
+bam=chrombpnet/data/03merged_bam/${cluster}.bam
+new_bam=chrombpnet/data/03merged_bam/${cluster}_new.bam
 
 module load samtools
 
-mkdir /home/huzhiy/projects_ox/multiome/analysis_newref/chrombpnet/data/tmp/${cluster}
-cd /home/huzhiy/projects_ox/multiome/analysis_newref/chrombpnet/data/tmp/${cluster}
+mkdir chrombpnet/data/tmp/${cluster}
+cd chrombpnet/data/tmp/${cluster}
 
 # Convert BAM to SAM
 samtools view -H $bam > header.sam

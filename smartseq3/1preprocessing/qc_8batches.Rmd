@@ -1,0 +1,351 @@
+---
+title: "Smart-Seq3 QC and initial analysis"
+author: "Zhiyuan Hu"
+date: "13/05/2022 (last modified: `r Sys.Date()`)"
+output:
+  prettydoc::html_pretty:
+    theme: architect
+    highlight: github
+---
+
+```{r setup, include=TRUE}
+knitr::opts_chunk$set(echo = TRUE)
+
+library(Seurat)
+library(patchwork)
+library(dplyr)
+library(ggplot2)
+library(RColorBrewer)
+library(DoubletFinder)
+my_cols = brewer.pal(8,"Dark2")
+stage_cols <- RColorBrewer::brewer.pal("Spectral", n = 10)
+genotype_cols <- RColorBrewer::brewer.pal("Set1", n = 9)[c(3,2,1,9)]
+```
+
+```{r}
+knitr::opts_knit$set(root.dir = 'Project_analysis/smartseq3/nc_ss3_analysis/preprocessing/')
+workdir <- 'Project_analysis/smartseq3/nc_ss3_analysis/preprocessing/'
+```
+
+## Read data
+
+```{r read-data}
+nc_all <- readRDS(paste0(workdir, "rds/seuobj/nc_all_unfiltered_8batches.rds"))
+nc_all
+```
+
+```{r}
+table(nc_all$Batch)
+```
+
+```{r qc-vlnplot}
+VlnPlot(nc_all, features = c("nFeature_RNA", "nCount_RNA", "percent.mt","umi_reads_ratio"), ncol = 4)
+```
+
+```{r qc-scatterplot-byBatch, fig.width=15, fig.height=6}
+plot1 <- FeatureScatter(nc_all, feature1 = "nCount_RNA", feature2 = "percent.mt", group.by = "Batch")
+plot2 <- FeatureScatter(nc_all, feature1 = "nCount_RNA", feature2 = "nFeature_RNA", group.by = "Batch")
+plot1 + plot2
+```
+
+
+```{r qc-scatterplot-byNote, fig.width=12}
+plot1 <- FeatureScatter(nc_all, feature1 = "nCount_RNA", feature2 = "percent.mt", group.by = "Note")
+plot2 <- FeatureScatter(nc_all, feature1 = "nCount_RNA", feature2 = "nFeature_RNA", group.by = "Note")
+plot1 + plot2
+```
+
+```{r median-range-qc}
+median(nc_all$nFeature_RNA)
+range(nc_all$nFeature_RNA)
+median(nc_all$nCount_RNA)
+range(nc_all$nCount_RNA)
+```
+
+
+```{r filtering}
+nc_all <- nc_all[,nc_all$nCount_RNA >= 100000 & 
+                  nc_all$nFeature_RNA >= 4000 &
+                  nc_all$nFeature_RNA <= 10000 &
+                  nc_all$percent.mt <= 10]
+median(nc_all$nFeature_RNA)
+range(nc_all$nFeature_RNA)
+median(nc_all$nCount_RNA)
+range(nc_all$nCount_RNA)
+```
+
+# Doublet filter
+
+```{r}
+# Pre-process Seurat object (standard) -------------------------------------------------------------------------------------
+nc_all <- NormalizeData(nc_all)
+nc_all <- FindVariableFeatures(nc_all, selection.method = "vst", nfeatures = 2000)
+nc_all <- ScaleData(nc_all)
+nc_all <- RunPCA(nc_all)
+ElbowPlot(nc_all, ndims = 50)
+# nc_all <- RunUMAP(nc_all, dims = 1:12)
+nc_all <- FindNeighbors(object = nc_all, reduction = "pca", k.param = 7,
+                     dims = 1:20, verbose = TRUE)
+nc_all <- FindClusters(nc_all, dims = 1:20, resolution = 0.5)
+```
+
+```{r}
+## pK Identification (no ground-truth) -------------------------------------------------------------------------------------
+sweep.res.list <- paramSweep_v3(nc_all, PCs = 1:20, sct = FALSE)
+sweep.stats <- summarizeSweep(sweep.res.list, GT = FALSE)
+bcmvn <- find.pK(sweep.stats)
+bcmvn
+
+## Homotypic Doublet Proportion Estimate -------------------------------------------------------------------------------------
+annotations <- nc_all@meta.data$seurat_clusters
+homotypic.prop <- modelHomotypic(annotations)           ## ex: annotations <- nc_all@meta.data$ClusteringResults
+nExp_poi <- round(0.075*nrow(nc_all@meta.data))  ## Assuming 7.5% doublet formation rate - tailor for your dataset
+nExp_poi.adj <- round(nExp_poi*(1-homotypic.prop))
+
+## Run DoubletFinder with varying classification stringencies ----------------------------------------------------------------
+nc_all <- doubletFinder_v3(nc_all, PCs = 1:20, pN = 0.25, pK = 0.005, nExp = nExp_poi, reuse.pANN = FALSE, sct = FALSE)
+nc_all <- doubletFinder_v3(nc_all, PCs = 1:20, pN = 0.25, pK = 0.005, nExp = nExp_poi.adj, reuse.pANN = "pANN_0.25_0.005_212", sct = FALSE)
+
+## Assign classification
+nc_all$DoubletFinder <- "Singlet"
+nc_all$DoubletFinder[nc_all$DF.classifications_0.25_0.005_198 == "Doublet"] <- "Doublet (high likelyhood)"
+nc_all$DoubletFinder[nc_all$DF.classifications_0.25_0.005_198 != "Doublet" &
+                    nc_all$DF.classifications_0.25_0.005_212 == "Doublet"] <- "Doublet (low likelyhood)"
+```
+
+# HVG
+
+```{r HVG, fig.width=12, fig.height=5}
+nc <- nc_all
+rm(nc_all)
+nc <- NormalizeData(nc, normalization.method = "LogNormalize", scale.factor = 10000)
+nc <- FindVariableFeatures(nc, selection.method = "vst", nfeatures = 2000)
+
+# Identify the 10 most highly variable genes
+top10 <- head(VariableFeatures(nc), 10)
+
+# plot variable features with and without labels
+p1 <- VariableFeaturePlot(nc)
+p2 <- LabelPoints(plot = p1, points = top10, repel = TRUE)
+p1 + p2
+```
+
+# PCA
+
+```{r Scale-RunPCA}
+all.genes <- rownames(nc)
+nc <- ScaleData(nc, features = all.genes)
+nc <- RunPCA(nc, features = VariableFeatures(object = nc))
+print(nc[["pca"]], dims = 1:5, nfeatures = 5)
+```
+
+```{r VizDimLoadings-plot, fig.width=15, fig.height=5}
+VizDimLoadings(nc, dims = 1:2, reduction = "pca")
+```
+
+```{r pcaplot coloured by origident}
+DimPlot(nc, reduction = "pca", dims = c(1,2), group.by = "Batch", 
+        cols = alpha(my_cols, 0.3), pt.size = 0.3)
+```
+
+
+```{r pca heatmap, fig.width=20, fig.height=20}
+DimHeatmap(nc, dims = 1:10, cells = 100, balanced = TRUE, ncol = 5)
+```
+
+# Elbowplot
+
+Let's see if you actually should use more PCs than usual (10-12)
+
+```{r JackStraw}
+# nc <- JackStraw(nc, num.replicate = 100, prop.freq = 0.1, dims = 50)
+# nc <- ScoreJackStraw(nc, dims = 1:50)
+```
+
+```{r JackStrawPlot}
+# JackStrawPlot(nc, dims = 1:50)
+```
+
+```{r ElbowPlot}
+ElbowPlot(nc, ndims = 50)
+```
+
+# Clustering
+
+```{r findneighbors findclusters runumap}
+nc <- FindNeighbors(nc, dims = 1:20, k.param = 7)
+nc <- FindClusters(nc, resolution = 0.6)
+nc <- RunUMAP(nc, dims = 1:20, n.neighbors = 7)
+```
+
+```{r umap-genotype-byPlate-byFACSgating, fig.width=20, fig.height=5}
+p1 <- DimPlot(nc, reduction = "umap", group.by = "DoubletFinder")
+p2 <- DimPlot(nc, reduction = "umap", group.by = "Batch")
+p3 <- DimPlot(nc, reduction = "umap", group.by = "FACSgate")
+p1+p2+p3
+```
+
+```{r UMAP-cluster-stage-genotype, fig.width=20, fig.height=5}
+p1 <- DimPlot(nc, reduction = "umap", label = TRUE)
+p2 <- DimPlot(nc, reduction = "umap", group.by = "Stage", cols = alpha(stage_cols[c(1,2,3,5,7,8,9)], 0.66))
+p3 <- DimPlot(nc, reduction = "umap", group.by = "Genotype", cols = alpha(genotype_cols, 0.66))
+p1 + p2 + p3
+```
+
+```{r}
+table(nc$seurat_clusters)
+```
+
+```{r}
+knitr::kable(table(nc$X96wPlate, nc$Genotype))
+```
+
+```{r}
+knitr::kable(table(nc$seurat_clusters, paste(nc$Genotype, nc$FACSgate)))
+```
+
+
+Expression of marker genes from Martyna's manuscript:
+
+* NC (tfap2a, pax3a, sox10)
+* Hindbrain NC (mafba, egr2b, hoxb3a)
+* NMp (tbxta, sox2, msgn1)
+
+```{r expression-known-markers, fig.width=21, fig.height=12}
+known_markers <- c("foxd3", "sox10","pax3a","tfap2a",
+                   "mafba","egr2b","hoxb3a",
+                   "tbxta","sox2","msgn1")
+# list_genes <- df_gene$gene_id[match(known_markers, df_gene$gene_name)]
+# known_markers <- paste0(known_markers, list_genes)
+FeaturePlot(nc, features = c(known_markers,"alg6"), ncol = 5)
+```
+
+# Find markers
+
+```{r findallmarkers}
+nc.markers <- FindAllMarkers(nc, only.pos = TRUE, min.pct = 0.25, logfc.threshold = 0.25)
+nc.markers$gene_name <- sapply(nc.markers$gene, function(x) return(unlist(strsplit(x, split = "ENSDARG"))[1]))
+nc.markers %>% group_by(cluster) %>% top_n(n = 2, wt = avg_log2FC)
+```
+
+```{r markers-heatmap, fig.height=15, fig.width=12}
+top5 <- nc.markers %>% group_by(cluster) %>% top_n(n = 5, wt = avg_log2FC)
+DoHeatmap(nc, features = top5$gene) 
+```
+
+
+```{r}
+write.csv(nc.markers, paste0(workdir, "results/nc.markers_8batches.csv"))
+```
+
+
+## Hox gene expression
+
+```{r hox-gene-expression, fig.height=12, fig.width=12}
+known_markers <- rownames(nc)[grep("^hox", rownames(nc))]
+DoHeatmap(nc, features = c(known_markers))
+```
+
+```{r, fig.height=20, fig.width=30}
+VlnPlot(nc, features = c(known_markers), ncol = 5)
+```
+
+
+# Other known markers
+
+## Posterior markers
+
+```{r, fig.height=20, fig.width=30}
+VlnPlot(nc, features = c("cdx1a","wnt8a","raraa",
+                         "myl10",
+                         "meox1","aldh1a2","tbx6","myf5",
+                         "noto","shhb",
+                         "foxj1a","pou5f3",
+                         "neurog1","sox3",
+                         "neurod1", "elavl4",
+                         "gfra1a",
+                         "foxi1"
+                         ))
+```
+
+
+## Save objects
+
+```{r}
+saveRDS(nc, paste0(workdir,"rds/clustered_nc_all_batches1to8.rds"))
+```
+
+
+## NC no doublet
+
+```{r, fig.width=12, fig.height=5}
+nc <- nc[,nc$DoubletFinder == "Singlet"]
+nc <- NormalizeData(nc, normalization.method = "LogNormalize", scale.factor = 10000)
+nc <- FindVariableFeatures(nc, selection.method = "vst", nfeatures = 2000)
+
+nc <- ScaleData(nc, features = rownames(nc))
+nc <- RunPCA(nc, features = VariableFeatures(object = nc))
+```
+
+```{r }
+DimPlot(nc, reduction = "pca", dims = c(1,2), group.by = "Batch", 
+        cols = alpha(my_cols, 0.6), pt.size = 0.3)
+```
+
+```{r}
+ElbowPlot(nc, ndims = 50)
+```
+
+### Clustering
+
+```{r}
+nc <- FindNeighbors(nc, dims = 1:20, k.param = 7)
+nc <- FindClusters(nc, resolution = 0.6)
+nc <- RunUMAP(nc, dims = 1:20, n.neighbors = 7)
+```
+
+```{r, fig.width=20, fig.height=6}
+p1 <- DimPlot(nc, reduction = "umap", group.by = "seurat_clusters", label = TRUE)
+p2 <- DimPlot(nc, reduction = "umap", group.by = "Stage", cols = alpha(stage_cols[c(1,2,3,5,7,8,9)], 0.66))
+# p3 <- DimPlot(nc, reduction = "umap", group.by = "Batch")
+p4 <- DimPlot(nc, reduction = "umap", group.by = "Genotype")
+
+p1+p2+p4
+```
+
+```{r, fig.width=21, fig.height=12}
+known_markers <- c("foxd3", "sox10","pax3a","tfap2a",
+                   "mafba","egr2b","hoxb3a",
+                   "tbxta","sox2","msgn1")
+FeaturePlot(nc, features = c(known_markers,"alg6"), ncol = 5, pt.size = 0.1)
+```
+
+### Save objects
+
+```{r}
+saveRDS(nc, paste0(workdir,"rds/seuobj/nc_all_doubletFiltered_clustered.rds"))
+```
+
+### Find markers
+
+```{r}
+nc.markers <- FindAllMarkers(nc, only.pos = TRUE, min.pct = 0.25, logfc.threshold = 0.25)
+nc.markers %>% group_by(cluster) %>% top_n(n = 2, wt = avg_log2FC)
+```
+
+```{r}
+tf_df <- read.delim("Project_analysis/database/AnimalTFDB4/Danio_rerio_TF.txt")
+cof_df <- read.delim("Project_analysis/database/AnimalTFDB4/Danio_rerio_Cof.txt")
+
+nc.markers$notes <- ""
+nc.markers$notes[nc.markers$gene %in% tf_df$Symbol] <- paste0(nc.markers$notes[nc.markers$gene %in% tf_df$Symbol], "tf")
+nc.markers$notes[nc.markers$gene %in% cof_df$Symbol] <- paste0(nc.markers$notes[nc.markers$gene %in% cof_df$Symbol], "cof")
+write.csv(nc.markers, paste0(workdir,"results/nc.markers_8batches_DoubletFiltered.csv"))
+```
+
+## Technical
+
+```{r}
+sessionInfo()
+```
+

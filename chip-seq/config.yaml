@@ -1,0 +1,43 @@
+sampleList: [ "K4me3-cit-1", "K4me3-cit-2", "K4me3-cit-3", "K27ac-cit-1","input-cit"]
+
+citList: ["K4me1-cit-1","K4me1-cit-2" ,"K4me1-cit-3" ,"K4me3-cit-1", "K4me3-cit-2", "K4me3-cit-3", 
+"K27ac-cit-1", "K27ac-cit-2", "K27ac-cit-3","K27me3-cit-1","K27me3-cit-2","K27me3-cit-3"]
+dpList: ["K4me1-dp-2" ,"K4me1-dp-3" ,"K4me3-dp-1", "K4me3-dp-2", "K4me3-dp-3", 
+"K27ac-dp-1", "K27ac-dp-2", "K27ac-dp-3","K27me3-dp-1","K27me3-dp-2","K27me3-dp-3"]
+controlList: ["input-cit","IgG-dp","IgG-cit"]
+
+### Chipseq
+idx_bt1: /databank/igenomes/Danio_rerio/Ensembl/GRCz11/Sequence/BowtieIndex/genome
+idx_bt2: /databank/igenomes/Danio_rerio/Ensembl/GRCz11/Sequence/Bowtie2Index/genome
+macs_g: hs
+macs_pvalue: 1e-5
+macs2_g: hs
+macs2_pvalue: 1e-5
+macs2_pvalue_broad: 1e-5
+
+control: 'Input'
+
+#number of reads downsample to, I set to 50 million, if reads number smaller than
+## 50 million, downsample will keep the orignal reads
+target_reads: 50000000
+
+## run chromHMM or not
+chromHMM: False
+
+##chromHMM bin size
+binsize: 200
+#chromatin state model
+state: 15
+##chromHMM genome
+chromHmm_g : GRCz11
+
+
+# Path to a JSON file with samples and their corresponding FASTQ files.
+SAMPLES: './SRR.txt'
+SAMPLES_JSON: './samples.json'
+CLUSTER_JSON: './cluster.json'
+
+## Zhiyuan HU
+## 4 Dec 2022
+## last modified 4 Dec 2022
+## refer to https://github.com/crazyhottommy/pyflow-ChIPseq/blob/master/config.yaml

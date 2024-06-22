@@ -1,0 +1,234 @@
+---
+title: "Calculate TPM and FPKM of three datasets"
+date: "2023-12-12 (last modified: `r Sys.Date()`)"
+output: 
+    prettydoc::html_pretty:
+    theme: architect
+    highlight: github
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+library(dplyr)
+library(Seurat)
+library(scales)
+```
+
+# import transcript length
+
+```{r}
+library(rtracklayer)
+library(GenomicRanges)
+
+gtf_file <- "ref/ensembl105/GRCz11.105_foxd3_mcherry_citrine/Danio_rerio.GRCz11.105_foxd3_mcherry_citrine.filtered.gtf"  # Replace with your GTF file path
+gtf_data <- rtracklayer::import(gtf_file)
+
+# Filter for exons
+exons <- gtf_data[gtf_data$type == "exon"]
+
+# Calculate transcript lengths
+transcript_lengths <- by(exons, exons$transcript_id, function(x) sum(width(reduce(x))))
+
+# Convert the output to a list if it's not already
+transcript_lengths <- as.list(transcript_lengths)
+
+# Convert to a data frame
+transcript_lengths_df <- do.call(rbind, transcript_lengths)
+colnames(transcript_lengths_df) <- c("transcript_length")
+transcript_lengths_df <- data.frame(transcript_lengths_df)
+head(transcript_lengths_df)
+```
+
+```{r}
+# Extract necessary information
+gene_transcript_map <- data.frame(
+  gene_id = mcols(gtf_data)$gene_id,
+  transcript_id = mcols(gtf_data)$transcript_id
+)
+
+# Removing duplicates and NAs
+gene_transcript_map <- unique(na.omit(gene_transcript_map))
+gene_id2name <- read.delim("multiome/analysis_newref/preprocessing/rds/seu_featuredata.tsv")
+gene_transcript_map$gene_name_multiome <- gene_id2name$gene_name_unique[match(gene_transcript_map$gene_id, 
+                                                                              gene_id2name$gene_id)]
+head(gene_transcript_map)
+```
+
+```{r}
+# Create a mapping table
+transcript_to_gene_map <- gene_transcript_map[, c("transcript_id", "gene_name_multiome")]
+transcript_lengths_df$gene_name <- transcript_to_gene_map$gene_name[
+  match(rownames(transcript_lengths_df),
+        transcript_to_gene_map$transcript_id)]
+head(transcript_lengths_df)
+```
+
+
+```{r}
+# Aggregate transcript lengths by gene_id and calculate the mean length
+gene_length_df <- aggregate(transcript_length ~ gene_name, data = transcript_lengths_df, FUN = mean)
+
+# Rename the 'length' column to something more descriptive
+colnames(gene_length_df)[colnames(gene_length_df) == "transcript_length"] <- "average_transcript_length"
+head(gene_length_df)
+```
+
+# Smart-seq3 whole dataset
+
+```{r}
+ss3_all <- readRDS("smartseq3_nc/analysis/preprocessing/rds/clustered_nc_all_batches1to8.rds")
+ss3_all$wt_mut <- NA
+ss3_all$wt_mut[ss3_all$Genotype %in% c("Cit","Cherry")] <- "wt"
+ss3_all$wt_mut[ss3_all$Genotype %in% c("DP")] <- "mut"
+```
+
+## 1. Split the Seurat Object by Stage and Genotype
+
+```{r}
+# Assuming `seurat_obj` is your Seurat object
+unique_combinations <- unique(ss3_all@meta.data[, c("Stage", "wt_mut")])
+unique_combinations <- na.omit(unique_combinations)
+split_objects <- lapply(seq_len(nrow(unique_combinations)), function(i) {
+  subset(
+    ss3_all,
+    subset = Stage == unique_combinations$Stage[i] & wt_mut == unique_combinations$wt_mut[i]
+  )
+})
+names(split_objects) <- paste0(unique_combinations$Stage,"_", unique_combinations$wt_mut)
+```
+
+## 2. Calculate FPKM for Each Group
+
+```{r}
+# Assuming `gene_lengths` is a data frame with `gene_id` and `length` columns
+calculate_FPKM <- function(seurat_obj, gene_lengths, panel_genes) {
+  # Get raw counts from the Seurat object
+  counts <- GetAssayData(seurat_obj, slot = "counts")
+  
+  # remove genes without gene length
+  counts <- counts[rownames(counts) %in% gene_lengths$gene_name,]
+  
+  # Match gene lengths to the counts matrix
+  matched_lengths <- gene_lengths$average_transcript_length[match(rownames(counts), gene_lengths$gene_name)]
+  counts <- apply(counts, 1, sum)
+  
+  # Calculate total mapped reads per cell (ensure that this matches how your Seurat object was created)
+  total_reads <- sum(counts)
+
+  # FPKM calculation (you may need to adjust this based on how your counts and gene lengths are scaled)
+  fpkm <- (counts / matched_lengths) / (total_reads) * 1e9
+  
+  # Return a list with FPKM and the corresponding subset of Seurat object
+  return(fpkm)
+}
+
+# Assuming `panel` is a data frame with genes of interest in the first column (V1)
+fpkm_results <- lapply(split_objects, calculate_FPKM, gene_lengths = gene_length_df, panel_genes = unique(c(panel$gene, receptors$gene)))
+df_fpkm_results <- do.call(cbind,fpkm_results)
+df_fpkm_results <- as.data.frame(df_fpkm_results)
+head(df_fpkm_results)
+```
+
+```{r}
+write.csv(df_fpkm_results, "multiome/analysis_newref/STprobe_select/results/fpkm_tpm/ss3_wholeData_splitBySample_fpkm.csv")
+saveRDS(df_fpkm_results, "multiome/analysis_newref/STprobe_select/results/fpkm_tpm/ss3_wholeData_splitBySample_fpkm.rds")
+```
+
+# multiome whole dataset
+
+```{r}
+multiome_all <- readRDS("multiome/analysis_newref/clustering/rds/seuobj_rna/seu_RNAsoupx64340_clustered.rds")
+```
+
+## 1. Split the Seurat Object by Stage and Genotype
+
+```{r}
+# Assuming `seurat_obj` is your Seurat object
+unique_combinations <- unique(multiome_all@meta.data[, c("stage", "genotype")])
+unique_combinations <- na.omit(unique_combinations)
+split_objects <- lapply(seq_len(nrow(unique_combinations)), function(i) {
+  subset(
+    multiome_all,
+    subset = stage == unique_combinations$stage[i] & genotype == unique_combinations$genotype[i]
+  )
+})
+names(split_objects) <- paste0(unique_combinations$stage,"_", unique_combinations$genotype)
+```
+
+## 2. Calculate TPM for Each Group
+
+```{r}
+# Assuming `gene_lengths` is a data frame with `gene_id` and `length` columns
+calculate_TPM <- function(seurat_obj) {
+  # Get raw counts from the Seurat object
+  counts <- GetAssayData(seurat_obj, slot = "counts")
+  counts <- apply(counts, 1, sum)
+  total_reads <- sum(counts)
+  # FPKM calculation (you may need to adjust this based on how your counts and gene lengths are scaled)
+  tpm <- (counts ) / (total_reads) * 1e6
+  # Return a list with FPKM and the corresponding subset of Seurat object
+  return(tpm)
+}
+
+# Assuming `panel` is a data frame with genes of interest in the first column (V1)
+fpkm_results <- lapply(split_objects, calculate_TPM)
+df_fpkm_results <- do.call(cbind,fpkm_results)
+df_fpkm_results <- as.data.frame(df_fpkm_results)
+head(df_fpkm_results)
+```
+
+```{r}
+write.csv(df_fpkm_results, "multiome/analysis_newref/STprobe_select/results/fpkm_tpm/multiome_wholeData_splitBySample_tpm.csv")
+saveRDS(df_fpkm_results, "multiome/analysis_newref/STprobe_select/results/fpkm_tpm/multiome_wholeData_splitBySample_tpm.rds")
+```
+
+# wagner small data
+
+```{r}
+seu.integrated <- readRDS("multiome/analysis_newref/integration/data/integrated/multiomeNC_wagner2018_cca.rds")
+DefaultAssay(seu.integrated) <- "RNA"
+seu <- seu.integrated[,seu.integrated$proj == "Wagner2018"]
+seu[["integrated"]] <- NULL
+seu <- seu[, seu$TimeID %in% c('10hpf', '14hpf', '18hpf')]
+wagner <- seu
+rm(seu.integrated)
+```
+
+## 1. Split the Seurat Object by Stage and Genotype
+
+```{r}
+# Assuming `seurat_obj` is your Seurat object
+unique_combinations <- unique(seu@meta.data[, c("TimeID")])
+unique_combinations <- na.omit(unique_combinations)
+split_objects <- lapply(1:length(unique_combinations), function(i) {
+  subset(
+    seu,
+    subset = TimeID == unique_combinations[i] 
+  )
+})
+names(split_objects) <- paste0(unique_combinations)
+```
+
+## 2. Calculate TPM for Each Group
+
+```{r}
+rm(fpkm_results)
+# Assuming `panel` is a data frame with genes of interest in the first column (V1)
+fpkm_results <- lapply(split_objects, calculate_TPM)
+df_fpkm_results <- do.call(cbind,fpkm_results)
+df_fpkm_results <- as.data.frame(df_fpkm_results)
+head(df_fpkm_results)
+```
+
+```{r}
+write.csv(df_fpkm_results, "multiome/analysis_newref/STprobe_select/results/fpkm_tpm/wagnerSmall_splitBySample_tpm.csv")
+saveRDS(df_fpkm_results, "multiome/analysis_newref/STprobe_select/results/fpkm_tpm/wagnerSmall_splitBySample_tpm.rds")
+```
+
+# Technical
+
+```{r}
+sessionInfo()
+```
+
+

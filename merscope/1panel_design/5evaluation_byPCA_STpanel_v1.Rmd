@@ -1,0 +1,130 @@
+---
+title: "evalutate ST panel v1 by dimension reduction"
+date: "2023-12-01 (last modified: `r Sys.Date()`)"
+output: 
+    prettydoc::html_pretty:
+    theme: architect
+    highlight: github
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+library(dplyr)
+library(Seurat)
+# library(patchwork)
+library(RColorBrewer)
+library(scales)
+library(ggplot2)
+stage_cols <- RColorBrewer::brewer.pal("Spectral", n = 11)
+genotype_cols <- RColorBrewer::brewer.pal("Set2", n = 8)[c(1,2,3,8)]
+sample_cols <- RColorBrewer::brewer.pal("Accent", n = 8)
+doublet_cols <- RColorBrewer::brewer.pal("Paired", n = 8)[c(6,8,2)]
+col.ls <- c(ArchR::ArchRPalettes$stallion, ArchR::ArchRPalettes$bear) # archR color palettes
+names(col.ls) <- NULL
+```
+
+# check PCA 
+
+```{r}
+panel <- read.csv("../results/evaluation/panel_v1_with_round1_additions.csv")
+```
+
+# read multiome & ss3 data
+
+```{r}
+seu <- readRDS("multiome/analysis_newref/clustering/rds/seuobj_rna/seu_RNAsoupx_NC.rds")
+seu@meta.data <- readRDS("multiome/analysis_newref/clustering/rds/metadata/seu_RNAsoupx_NC_metadata.rds")
+ss3 <- SeuratDisk::LoadH5Seurat("multiome/analysis_newref/integration/data/ss3_ncall.h5Seurat")
+```
+
+# run preprocessing steps - multiome
+
+```{r}
+seu <- RunPCA(seu, features = panel$gene[panel$pass_expression_filter], reduction.name = "panel_PC")
+```
+
+```{r, fig.width=12, fig.height=5}
+DimPlot(seu, reduction = "panel_PC", group.by = "cell_type")
+```
+
+```{r, fig.width=14, fig.height=6}
+seu <- FindNeighbors(seu, reduction = "panel_PC")
+seu <- RunTSNE(seu, reduction = "panel_PC")
+seu <- FindClusters(seu, reduction = "panel_PC")
+
+col.ls2 <- col.ls
+# names(col.ls2) <- paste0(cluster.assignments$cluster, ":", cluster.assignments$name)
+DimPlot(seu, label = T, group.by = "cell_type",
+        reduction = "tsne", cols = alpha(col.ls2, 0.6), pt.size = 0.5,
+        repel = T)
+```
+
+# run preprocessing steps - ss3
+
+```{r}
+ss3 <- NormalizeData(ss3)
+ss3 <- ScaleData(ss3, features = rownames(ss3))
+ss3 <- RunPCA(ss3, features = panel$gene[panel$pass_expression_filter], reduction.name = "panel_PC")
+```
+
+```{r, fig.width=9, fig.height=5}
+DimPlot(ss3, reduction = "panel_PC", group.by = "cell_type")
+```
+
+```{r, fig.width=12, fig.height=6}
+ss3 <- FindNeighbors(ss3, reduction = "panel_PC")
+ss3 <- RunTSNE(ss3, reduction = "panel_PC")
+ss3 <- FindClusters(ss3, reduction = "panel_PC")
+
+col.ls2 <- col.ls
+DimPlot(ss3, label = T, group.by = "cell_type",
+        reduction = "tsne", cols = alpha(col.ls2, 0.6), pt.size = 0.5,
+        repel = T)
+```
+
+```{r}
+FeaturePlot(ss3, "elavl3", reduction = "tsne")
+```
+
+# run preprocessing steps - wagner
+
+```{r}
+seu.integrated <- readRDS("multiome/analysis_newref/integration/data/integrated/multiomeNC_wagner2018_cca.rds")
+DefaultAssay(seu.integrated) <- "RNA"
+seu <- seu.integrated[,seu.integrated$proj == "Wagner2018"]
+seu[["integrated"]] <- NULL
+seu <- seu[, seu$TimeID %in% c('10hpf', '14hpf', '18hpf')]
+wagner <- seu
+rm(seu.integrated)
+```
+
+```{r}
+wagner <- NormalizeData(wagner)
+wagner <- ScaleData(wagner, features = rownames(wagner))
+wagner <- RunPCA(wagner, features = panel$gene[panel$pass_expression_filter], reduction.name = "panel_PC")
+```
+
+```{r, fig.width=6, fig.height=5}
+DimPlot(wagner, reduction = "panel_PC", group.by = "ClusterName_short") + NoLegend()
+```
+
+```{r, fig.width=12, fig.height=10}
+wagner <- FindNeighbors(wagner, reduction = "panel_PC")
+wagner <- RunTSNE(wagner, reduction = "panel_PC")
+wagner <- FindClusters(wagner, reduction = "panel_PC")
+
+DimPlot(wagner, label = T, group.by = "ClusterName_short", pt.size = 0.5,  reduction  = "tsne",
+        repel = T) + NoLegend()
+```
+
+```{r, fig.width=12, fig.height=10}
+DimPlot(wagner, label = T, group.by = "TissueName", pt.size = 0.5,  reduction  = "tsne",
+        repel = T) + NoLegend()
+```
+
+# Technical
+
+```{r}
+sessionInfo()
+```
+
