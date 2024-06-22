@@ -6,7 +6,7 @@
 ##~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 # reticulate::use_condaenv("scenicplus_new")
 # Refer to https://scenicplus.readthedocs.io/en/latest/Scenicplus_step_by_step-RTD.html
-# /ceph/home/z/zhu/t1data/multiome/analysis_newref/GRN_scenicplus/ncall_2023oct_ccb/code/5expore_grn.py
+# multiome/analysis_newref/GRN_scenicplus/ncall_2023oct_ccb/code/5expore_grn.py
 
 import dill
 import scanpy as sc
@@ -21,8 +21,8 @@ import pyranges
 import sys
 _stderr = sys.stderr
 null = open(os.devnull,'wb')
-work_dir = '/ceph/home/z/zhu/t1data/multiome/analysis_newref/GRN_scenicplus/ncall_2023oct_ccb/output/'
-tmpDir = '/ceph/home/z/zhu/t1data/tmp'
+work_dir = 'multiome/analysis_newref/GRN_scenicplus/ncall_2023oct_ccb/output/'
+tmpDir = 'tmp'
 
 import os
 if not os.path.exists(os.path.join(work_dir, 'scenicplus/plots')):
@@ -195,8 +195,7 @@ plt.show()
 plt.savefig(work_dir + 'scenicplus/plots/eRegulon_AUC_correlation.pdf')
 
 correlations.to_csv(work_dir + 'scenicplus/plots/eRegulon_AUC_correlation.csv')
-correlations = correlations[abs(correlations) > 0.4] ## modify this to 0.5
-# 559
+correlations = correlations[abs(correlations) > 0.4] 
 
 # Keep only R2G +
 keep = [x for x in correlations.index if '+_+' in x] + [x for x in correlations.index if '-_+' in x]

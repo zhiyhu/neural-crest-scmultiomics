@@ -3,14 +3,14 @@
 # date: '2022-12-20'
 # last modified 29 Dec 2023
 
-## ----setup, include=FALSE------------------------------------------------------------------------------------------------------------
+## ----setup
 # knitr::opts_chunk$set(echo = TRUE)
 library(Signac)
 library(Seurat)
 library(BSgenome.Drerio.UCSC.danRer11)
 library(GenomeInfoDb)
 
-seu_atac <- readRDS("/ceph/project/tsslab/zhu/multiome/analysis_newref/multivelo2023dec/data/02multiome/nc_multiome_postRegionStats.rds")
+seu_atac <- readRDS("multiome/analysis_newref/multivelo2023dec/data/02multiome/nc_multiome_postRegionStats.rds")
 seu_atac
 
 args = commandArgs(trailingOnly=TRUE)
@@ -30,6 +30,6 @@ DefaultAssay(seu_atac) <- "peaks"
 x <- Links(object = seu_atac)
 
 print("linking done.. save links")
-saveRDS(x, paste0("/ceph/project/tsslab/zhu/multiome/analysis_newref/multivelo2023dec/data/03peaks/signac_linkpeaks_",start,"_",end,".rds" ))
+saveRDS(x, paste0("multiome/analysis_newref/multivelo2023dec/data/03peaks/signac_linkpeaks_",start,"_",end,".rds" ))
 
 sessionInfo()

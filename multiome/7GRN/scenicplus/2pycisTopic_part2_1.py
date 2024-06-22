@@ -9,7 +9,7 @@
 
 # reticulate::use_condaenv("scenicplus")
 
-# /ceph/home/z/zhu/t1data/multiome/analysis_newref/GRN_scenicplus/ncall_2023oct_ccb/code/2pycisTopic_part2_1.py
+# multiome/analysis_newref/GRN_scenicplus/ncall_2023oct_ccb/code/2pycisTopic_part2_1.py
 
 # reference: https://pycistopic.readthedocs.io/en/latest/Cortex_pycisTopic.html#9.-Differentially-accessible-regions-(DARs)
 # reference: https://scenicplus.readthedocs.io/en/latest/pbmc_multiome_tutorial.html#scATAC-seq-preprocessing-using-pycisTopic 
@@ -23,7 +23,7 @@ import matplotlib.pyplot as plt
 pycisTopic.__version__
 
 # Project directory
-projDir = '/ceph/home/z/zhu/t1data/multiome/analysis_newref/GRN_scenicplus/ncall_2023oct_ccb/'
+projDir = 'multiome/analysis_newref/GRN_scenicplus/ncall_2023oct_ccb/'
 
 # Output directory
 outDir = projDir + 'output/'
@@ -33,7 +33,7 @@ if not os.path.exists(outDir):
 
 # Temp dir
 ## this needs to be short to avoid "OSError: AF_UNIX path length cannot exceed 107 bytes"
-tmpDir = '/ceph/home/z/zhu/t1data/multiome/analysis_newref/GRN_scenicplus/ncall_2023oct_ccb/tmp/'
+tmpDir = 'multiome/analysis_newref/GRN_scenicplus/ncall_2023oct_ccb/tmp/'
 
 ##~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 ## 5. Topic modeling (Topic modeling can be computationaly intense!)

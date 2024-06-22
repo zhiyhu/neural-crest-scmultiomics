@@ -9,5 +9,5 @@ module load R-cbrg/current
 
 for i in {0..27000..1000}
 do
-sbatch -J linkp_$i /ceph/home/z/zhu/t1data/multiome/analysis_newref/multivelo2023dec/scripts/03_1signac_linkpeaks.sh $i
+sbatch -J linkp_$i multiome/analysis_newref/multivelo2023dec/scripts/03_1signac_linkpeaks.sh $i
 done

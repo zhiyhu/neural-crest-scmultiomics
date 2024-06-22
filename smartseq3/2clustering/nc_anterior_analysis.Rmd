@@ -15,8 +15,6 @@ library(patchwork)
 library(dplyr)
 library(ggplot2)
 library(RColorBrewer)
-# devtools::install("DoMultiBarHeatmap")
-# library(DoMultiBarHeatmap)
 my_cols <- RColorBrewer::brewer.pal("Spectral", n = 10)
 stage_cols <- RColorBrewer::brewer.pal("Spectral", n = 10)
 stage_cols2 <- stage_cols[c(2,3,5,7,8,9,10)]

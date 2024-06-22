@@ -7,12 +7,12 @@
 library(GenomicRanges)
 
 # Read hommer annotation
-# /ceph/project/tsslab/zhu/multiome/R/multivelo2023dec/scripts/homer_annotatepeaks.sh
-peak_annot <- read.delim("/ceph/project/tsslab/zhu/multiome/analysis_newref/multivelo2023dec/data/01peaks/homerannot_peaks_scplus.txt")
+# multiome/R/multivelo2023dec/scripts/homer_annotatepeaks.sh
+peak_annot <- read.delim("multiome/analysis_newref/multivelo2023dec/data/01peaks/homerannot_peaks_scplus.txt")
 
 print("Load cisTopic-called peaks")
 scplus_peaks <- read.table(
-  file = "/ceph/project/tsslab/zhu/multiome/analysis_newref/GRN_scenicplus/ncall_2023oct_ccb/output/consensus_peak_calling/consensus_regions_filtered.bed",
+  file = "multiome/analysis_newref/GRN_scenicplus/ncall_2023oct_ccb/output/consensus_peak_calling/consensus_regions_filtered.bed",
   col.names = c("chr", "start", "end","cell_type","1","2"), row.names = NULL
 )
 colnames(scplus_peaks) <- c("chr","start", "end","cell_type","X1","X2")
@@ -54,12 +54,6 @@ df$peak_type[grepl("Intergenic", df$peak_type)  & abs( df$distance) <= 200000] <
 # If a peak has not been mapped to any gene at the step, it will be annotated as an intergenic peak without a gene symbol assigned.
 df$peak_type[grepl("Intergenic", df$peak_type) ] <- "intergenic"
 
-table(df$peak_type)
-# distal intergenic   promoter 
-# 309667       4204      23974 
-
-range(df$distance[df$peak_type == "promoter"])
-# [1] -1000   981
 df <- df[!is.na(df$peak_type),]
 
-write.table(df, sep = "\t", quote = FALSE, file = "/ceph/project/tsslab/zhu/multiome/analysis_newref/multivelo2023dec/data/01peaks/multivelo_peakanno_scplus.txt", row.names = FALSE)
+write.table(df, sep = "\t", quote = FALSE, file = "multiome/analysis_newref/multivelo2023dec/data/01peaks/multivelo_peakanno_scplus.txt", row.names = FALSE)

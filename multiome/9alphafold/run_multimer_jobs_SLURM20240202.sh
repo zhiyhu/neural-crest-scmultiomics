@@ -25,7 +25,7 @@
 #SBATCH --mem=64000
 
 eval "$(conda shell.bash hook)"
-conda activate /home/huzhiy/miniforge3/envs/AlphaPulldown
+conda activate AlphaPulldown
 
 module load cuda/12.2
 
@@ -46,9 +46,9 @@ export TF_FORCE_UNIFIED_MEMORY='1'
 run_multimer_jobs.py --mode=pulldown \
     --num_cycle=3 \
     --num_predictions_per_model=1 \
-    --output_path=/home/huzhiy/projects_ox/multiome/analysis_newref/alphafold/output/models20240202 \
+    --output_path=multiome/analysis_newref/alphafold/output/models20240202 \
     --data_dir=/data/share_for_user/alphfold_db \
-    --protein_lists=/home/huzhiy/projects_ox/multiome/analysis_newref/alphafold/data/bait20240202_2.txt,/home/huzhiy/projects_ox/multiome/analysis_newref/alphafold/data/targets20240202.txt \
-    --monomer_objects_dir=/home/huzhiy/projects_ox/multiome/analysis_newref/alphafold/output/features20240128 \
+    --protein_lists=multiome/analysis_newref/alphafold/data/bait20240202_2.txt,multiome/analysis_newref/alphafold/data/targets20240202.txt \
+    --monomer_objects_dir=multiome/analysis_newref/alphafold/output/features20240128 \
     --job_index=$SLURM_ARRAY_TASK_ID
 

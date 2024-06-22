@@ -2,14 +2,14 @@
 ## pycisTopic process for SCENIC+: NC all cells
 ## Zhiyuan Hu
 ## 16 Nov 2022
-## last modified 13 Dec  2023
+## last modified 13 Dec 2023
 ##
 ## Env: scenicplus
 ## content: pseudobulk > consensus peaks > QC > cisTopic object
 ##~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
 # reticulate::use_condaenv("scenicplus")
-# /ceph/home/z/zhu/t1data/multiome/analysis_newref/GRN_scenicplus/ncall_2023oct_ccb/code/2pycisTopic_part1_2.py
+# multiome/analysis_newref/GRN_scenicplus/ncall_2023oct_ccb/code/2pycisTopic_part1_2.py
 
 # reference: https://pycistopic.readthedocs.io/en/latest/Cortex_pycisTopic.html#9.-Differentially-accessible-regions-(DARs)
 # reference: https://scenicplus.readthedocs.io/en/latest/pbmc_multiome_tutorial.html#scATAC-seq-preprocessing-using-pycisTopic 
@@ -22,12 +22,12 @@ import matplotlib.pyplot as plt
 pycisTopic.__version__
 import os 
 # Project directories
-projDir = '/home/z/zhu/t1data/multiome/analysis_newref/GRN_scenicplus/ncall_2023oct_ccb/'
-rna = os.path.join('/home/z/zhu/t1data/multiome/analysis_newref/GRN_scenicplus/ncall/',"scRNA/adata_ncall.h5ad") # rna data
-tmpDir = '/home/z/zhu/t1data/tmp/'## tmp dir needs to be short to avoid "OSError: AF_UNIX path length cannot exceed 107 bytes"
+projDir = 'multiome/analysis_newref/GRN_scenicplus/ncall_2023oct_ccb/'
+rna = os.path.join('multiome/analysis_newref/GRN_scenicplus/ncall/',"scRNA/adata_ncall.h5ad") # rna data
+tmpDir = 'tmp/'## tmp dir needs to be short to avoid "OSError: AF_UNIX path length cannot exceed 107 bytes"
 
 ## Path to fragments files of samples
-fragments_path = '/ceph/project/tsslab/zhu/multiome/analysis_newref/cellranger_arc/output/'
+fragments_path = 'multiome/analysis_newref/cellranger_arc/output/'
 fragments_dict = {'s1': fragments_path+'scmo_s1/outs/atac_fragments.tsv.gz',
                  's2': fragments_path+'scmo_s2/outs/atac_fragments.tsv.gz',
                  's3': fragments_path+'scmo_s3/outs/atac_fragments.tsv.gz',
@@ -95,9 +95,9 @@ import pybiomart as pbm
 # available genenames
 
 import pandas as pd
-genenames =  pd.read_csv("/ceph/project/tsslab/zhu/multiome/analysis_newref/preprocessing/rds/seu_featuredata.tsv", sep = '\t')
+genenames =  pd.read_csv("multiome/analysis_newref/preprocessing/rds/seu_featuredata.tsv", sep = '\t')
 
-annot = pd.read_csv("/ceph/project/tsslab/zhu/multiome/analysis_newref/GRN_scenicplus/data/gene_annot/pybiomart_drerio_gene_ensembl105_geneNameMatched.csv")
+annot = pd.read_csv("multiome/analysis_newref/GRN_scenicplus/data/gene_annot/pybiomart_drerio_gene_ensembl105_geneNameMatched.csv")
 # If you want to run all (or several of) the metrics, you can use the compute_qc_stats() function. 
 # As input you need to provide a dictionary containing the fragments files per sample and another 
 # dictionary the corresponding regions to use to estimate the FRIP.
@@ -281,7 +281,7 @@ for sample in sel_cells_dict.keys():
 # Path to regions
 path_to_regions = outDir + 'consensus_peak_calling/consensus_regions.bed'
 ## Blacklist
-path_to_blacklist="/ceph/project/tsslab/zhu/ref/blacklist/danRer11_blacklist_USCSliftover_20221223_noCHR.bed"
+path_to_blacklist="ref/blacklist/danRer11_blacklist_USCSliftover_20221223_noCHR.bed"
 # Metrics
 import pickle
 infile = open(outDir + 'quality_control/metadata_bc.pkl', 'rb')

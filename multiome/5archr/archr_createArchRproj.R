@@ -14,16 +14,15 @@ library(BSgenome.Drerio.UCSC.danRer11)
 
 addArchRThreads(threads = 24) 
 
-setwd("/t1-data/project/tsslab/zhu/multiome/analysis_newref/archr")
+setwd("multiome/analysis_newref/archr")
 
-ArrowFiles <- paste0("/t1-data/project/tsslab/zhu/multiome/analysis_newref/archr/","scmo_s", 1:8,".arrow")
+ArrowFiles <- paste0("multiome/analysis_newref/archr/","scmo_s", 1:8,".arrow")
 
 geneAnnotation <- readRDS("Annotation/geneAnnotation_GRCz11_105.rds") 
 genomeAnnotation <- readRDS("Annotation/genomeAnnotation_GRCz11_105.rds")
 seqlevelsStyle(genomeAnnotation$chromSizes) <- "NCBI"
 seqlevelsStyle(genomeAnnotation$blacklist) <- "NCBI"
 seqlevelsStyle(BSgenome.Drerio.UCSC.danRer11) <- "NCBI"
-
 
 proj <- ArchRProject(
   ArrowFiles = ArrowFiles, 
@@ -33,12 +32,8 @@ proj <- ArchRProject(
   copyArrows = F #This is recommened so that if you modify the Arrow files you have an original copy for later usage.
 )
 
-head(proj$cellNames)
-# [1] "scmo_s1#ATTACGTCATTGTGTG-1" "scmo_s1#GTTTACCGTAATCCCT-1" "scmo_s1#AGCAATACATAATCGT-1" "scmo_s1#GTTCTCATCTAACCTT-1" "scmo_s1#CTATTGAAGTGAGCAA-1"
-# [6] "scmo_s1#GCTTAAATCACCTGTC-1"
-
 ### Read Seurat object
-seu <- readRDS("/t1-data/project/tsslab/zhu/multiome/analysis_newref/clustering/rds/seuobj_rna/seu_RNAsoupx64340_clustered.rds")
+seu <- readRDS("multiome/analysis_newref/clustering/rds/seuobj_rna/seu_RNAsoupx64340_clustered.rds")
 cellnames <- colnames(seu)
 cellnames <- gsub("_","#", cellnames)
 cellnames <- gsub("s","scmo_s", cellnames)
@@ -61,7 +56,7 @@ seu$cell_type[seu$seurat_clusters == 12] <- "notocord2"
 seu$cell_type[seu$seurat_clusters == 9] <- "mutant low-feature"
 seu$cell_type[seu$seurat_clusters == 23] <- "hatching gland"
 
-# tail bud
+# tailbud
 seu$cell_type[seu$seurat_clusters ==4] <- "tailbud - PSM & spinal cord"
 seu$cell_type[seu$seurat_clusters ==3] <- "tailbud - PSM"
 seu$cell_type[seu$seurat_clusters ==16] <- "tailbud - PSM (myotome)"
@@ -76,7 +71,7 @@ seu$cell_type[seu$seurat_clusters == 27] <- "differentiating neurons"
 # unclassified
 seu$cell_type[seu$seurat_clusters == 17] <- "unclassified1"
 
-# outer clusters
+# other clusters
 seu$cell_type[seu$seurat_clusters == 18] <- "pluripotent"
 
 seu$cell_type[seu$seurat_clusters == 10] <- "mesoderm mixed"
@@ -104,7 +99,7 @@ print("Saving and Loading an ArchRProject")
 proj <- saveArchRProject(ArchRProj = proj)
 
 # write session info
-writeLines(capture.output(sessionInfo()), "/t1-data/project/tsslab/zhu/multiome/analysis_newref/archr/sessionInfo/archr_createArchRproj.txt")
+writeLines(capture.output(sessionInfo()), "multiome/analysis_newref/archr/sessionInfo/archr_createArchRproj.txt")
 
 
 

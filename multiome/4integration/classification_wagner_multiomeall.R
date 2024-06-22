@@ -6,7 +6,6 @@
 
 ## prepare multiome data
 
-
 library(Seurat)
 library(SeuratData)
 library(SeuratDisk)
@@ -15,20 +14,21 @@ library(ggplot2)
 library(cowplot)
 library(patchwork)
 
-figdir="/t1-data/project/tsslab/zhu/multiome/analysis_newref/integration/figures/allcells_wagner_cca/"
-outputdir="/t1-data/project/tsslab/zhu/multiome/analysis_newref/integration/data/"
+figdir="multiome/analysis_newref/integration/figures/allcells_wagner_cca/"
+outputdir="multiome/analysis_newref/integration/data/"
 ndim=50
+
 ##---------------------------------##
 ## Preprocessing both datasets ------
 ##---------------------------------##
-seu <- readRDS("/t1-data/project/tsslab/zhu/multiome/analysis_newref/clustering/rds/seuobj_rna/seu_RNAsoupx64340_clustered.rds")
+seu <- readRDS("multiome/analysis_newref/clustering/rds/seuobj_rna/seu_RNAsoupx64340_clustered.rds")
 
 seu <- CreateSeuratObject(counts = seu@assays$RNA@counts,
                           meta.data = seu@meta.data)
 
 ## preprocessing Wagner 2018 data------
 # https://satijalab.org/loomr/loomr_tutorial
-refloom <- connect(filename = "/t1-data/project/tsslab/zhu/multiome/R/ref_mapping/data/Wagner2018/public_data/WagnerScience2018.loom", mode = "r", skip.validate = TRUE)
+refloom <- connect(filename = "multiome/R/ref_mapping/data/Wagner2018/public_data/WagnerScience2018.loom", mode = "r", skip.validate = TRUE)
 
 full.matrix <- refloom[["matrix"]][,]
 full.matrix <- t(full.matrix)
@@ -44,7 +44,7 @@ colnames(full.matrix) <- cell.names
 gc()
 
 # metadata
-ref_metadata <- read.csv("/t1-data/project/tsslab/zhu/multiome/R/ref_mapping/data/Wagner2018/public_data/WagnerScience2018_metadata.csv", row.names = 1)
+ref_metadata <- read.csv("multiome/R/ref_mapping/data/Wagner2018/public_data/WagnerScience2018_metadata.csv", row.names = 1)
 
 # create seurat object
 ref <- CreateSeuratObject(counts = full.matrix, meta.data = ref_metadata)
@@ -53,11 +53,6 @@ rm(ref_metadata)
 refloom$close_all()
 
 ref$ClusterName_short <- sapply(ref$ClusterName, function(x) unlist(strsplit(x, "hpf-"))[2])
-
-## ~16k gene overlap
-table(rownames(ref) %in% rownames(seu))
-# FALSE  TRUE 
-# 13970 16707 
 
 ##---------------------------------##
 ## Integration  ------

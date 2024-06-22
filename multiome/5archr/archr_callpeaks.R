@@ -14,9 +14,9 @@ library(BSgenome.Drerio.UCSC.danRer11)
 
 addArchRThreads(threads = 24) 
 
-setwd("/t1-data/project/tsslab/zhu/multiome/analysis_newref/archr")
+setwd("multiome/analysis_newref/archr")
 
-ArrowFiles <- paste0("/t1-data/project/tsslab/zhu/multiome/analysis_newref/archr/","scmo_s", 1:8,".arrow")
+ArrowFiles <- paste0("multiome/analysis_newref/archr/","scmo_s", 1:8,".arrow")
 
 geneAnnotation <- readRDS("Annotation/geneAnnotation_GRCz11_105.rds") 
 genomeAnnotation <- readRDS("Annotation/genomeAnnotation_GRCz11_105.rds")
@@ -24,7 +24,7 @@ seqlevelsStyle(genomeAnnotation$chromSizes) <- "NCBI"
 seqlevelsStyle(genomeAnnotation$blacklist) <- "NCBI"
 seqlevelsStyle(BSgenome.Drerio.UCSC.danRer11) <- "NCBI"
 
-proj <- loadArchRProject(path = "/t1-data/project/tsslab/zhu/multiome/analysis_newref/archr/scmo_all/")
+proj <- loadArchRProject(path = "multiome/analysis_newref/archr/scmo_all/")
 
 ### Calling peaks
 print("addReproduciblePeakSet")
@@ -34,7 +34,7 @@ proj <- addReproduciblePeakSet(
   geneAnnotation = geneAnnotation,
   genomeAnnotation = genomeAnnotation,
   genomeSize = 1.41e+9, #https://bionumbers.hms.harvard.edu/bionumber.aspx?s=n&v=4&id=111374;https://www.ncbi.nlm.nih.gov/geo/query/acc.cgi?acc=GSM1077595
-  pathToMacs2 = "/t1-data/project/tsslab/zhu/.conda/envs/macs2/bin/macs2"
+  pathToMacs2 = ".conda/envs/macs2/bin/macs2"
 )
 getPeakSet(proj)
 proj <- addPeakMatrix(proj)
@@ -53,11 +53,11 @@ markersPeaks <- getMarkerFeatures(
   bias = c("TSSEnrichment", "log10(nFrags)"),
   testMethod = "wilcoxon"
 )
-saveRDS(markersPeaks,"/t1-data/project/tsslab/zhu/multiome/analysis_newref/archr/scmo_all/rds/markersPeaks.rds")
+saveRDS(markersPeaks,"multiome/analysis_newref/archr/scmo_all/rds/markersPeaks.rds")
 
 print("addMotifAnnotations")
 # CIS-BP data
-motifs_list <- readRDS("/t1-data/project/tsslab/zhu/multiome/R/clustering/rds/pando/cisbp_motif.rds")
+motifs_list <- readRDS("multiome/R/clustering/rds/pando/cisbp_motif.rds")
 ## Construction of PFM<atrixList from list of PFMatrix
 library(TFBSTools)
 pfmList <- do.call(PFMatrixList, motifs_list)
@@ -76,8 +76,8 @@ enrichMotifs <- peakAnnoEnrichment(
   peakAnnotation = "Motif",
   cutOff = "FDR <= 0.1 & Log2FC >= 0.5"
 )
-saveRDS(enrichMotifs,"/t1-data/project/tsslab/zhu/multiome/analysis_newref/archr/scmo_all/rds/enrichMotifs.rds")
+saveRDS(enrichMotifs,"multiome/analysis_newref/archr/scmo_all/rds/enrichMotifs.rds")
 
 # write session info
-writeLines(capture.output(sessionInfo()), "/t1-data/project/tsslab/zhu/multiome/analysis_newref/archr/sessionInfo/archr_callpeaks.txt")
+writeLines(capture.output(sessionInfo()), "multiome/analysis_newref/archr/sessionInfo/archr_callpeaks.txt")
 

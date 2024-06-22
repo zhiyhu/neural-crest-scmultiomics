@@ -13,7 +13,7 @@
 # reference: https://pycistopic.readthedocs.io/en/latest/Cortex_pycisTopic.html#9.-Differentially-accessible-regions-(DARs)
 # reference: https://scenicplus.readthedocs.io/en/latest/pbmc_multiome_tutorial.html#scATAC-seq-preprocessing-using-pycisTopic 
 
-# /ceph/home/z/zhu/t1data/multiome/analysis_newref/GRN_scenicplus/ncall_2023oct_ccb/code/2pycisTopic_part1_1.py
+# multiome/analysis_newref/GRN_scenicplus/ncall_2023oct_ccb/code/2pycisTopic_part1_1.py
 
 import warnings
 warnings.simplefilter(action='ignore')
@@ -25,12 +25,12 @@ pycisTopic.__version__
 # '1.0.2.dev21+g219225d'
 import os 
 # Project directories
-projDir = '/home/z/zhu/t1data/multiome/analysis_newref/GRN_scenicplus/ncall_2023oct_ccb/'
-rna = os.path.join('/home/z/zhu/t1data/multiome/analysis_newref/GRN_scenicplus/ncall/',"scRNA/adata_ncall.h5ad") # rna data
-tmpDir = '/home/z/zhu/t1data/tmp/'## tmp dir needs to be short to avoid "OSError: AF_UNIX path length cannot exceed 107 bytes"
+projDir = 'multiome/analysis_newref/GRN_scenicplus/ncall_2023oct_ccb/'
+rna = os.path.join('multiome/analysis_newref/GRN_scenicplus/ncall/',"scRNA/adata_ncall.h5ad") # rna data
+tmpDir = 'tmp/'## tmp dir needs to be short to avoid "OSError: AF_UNIX path length cannot exceed 107 bytes"
 
 ## Path to fragments files of samples
-fragments_path = '/home/z/zhu/t1data/multiome/analysis_newref/cellranger_arc/output/'
+fragments_path = 'multiome/analysis_newref/cellranger_arc/output/'
 fragments_dict = {'s1': fragments_path+'scmo_s1/outs/atac_fragments.tsv.gz',
                  's2': fragments_path+'scmo_s2/outs/atac_fragments.tsv.gz',
                  's3': fragments_path+'scmo_s3/outs/atac_fragments.tsv.gz',
@@ -82,28 +82,16 @@ cell_data['sample_id'] = cell_data['sample_id'].replace('22dp', 's6')
 cell_data['sample_id'] = cell_data['sample_id'].replace('22cit2', 's7')
 cell_data['sample_id'] = cell_data['sample_id'].replace('4mix', 's8')
 cell_data['sample_id'].value_counts()
-# s1    4709
-# s5    3385
-# s6    3118
-# s3    1833
-# s4    1681
-# s8     943
-# s2     812
-# s7      69
 
 # Get chromosome sizes (for danRer11 here)
 import pyranges as pr
 import requests
-# target_url='http://hgdownload.cse.ucsc.edu/goldenPath/danRer11/bigZips/danRer11.chrom.sizes     ' # modified to zebrafish
-target_url="/home/z/zhu/t1data/ref/ensembl105/cellranger_arc/GRCz11_ensembl105_foxd3_cellranger_arc/star/chrNameLength.txt"
+target_url="ref/ensembl105/cellranger_arc/GRCz11_ensembl105_foxd3_cellranger_arc/star/chrNameLength.txt"
 chromsizes=pd.read_csv(target_url, sep='\t', header=None)
 chromsizes.columns=['Chromosome', 'End']
 chromsizes['Start']=[0]*chromsizes.shape[0]
 chromsizes=chromsizes.loc[:,['Chromosome', 'Start', 'End']]
-# Exceptionally in this case, to agree with CellRangerARC annotations
-# chromsizes['Chromosome'] = [chromsizes['Chromosome'][x].replace('_random', '') for x in range(len(chromsizes['Chromosome']))]
-# chromsizes['Chromosome'] = [chromsizes['Chromosome'][x].split('_')[1] if len(chromsizes['Chromosome'][x].split('_')) > 1 else chromsizes['Chromosome'][x] for x in range(len(chromsizes['Chromosome']))]
-# chromsizes['Chromosome'] = [chromsizes['Chromosome'][x]+'.1' if 'chr' not in chromsizes['Chromosome'][x] else chromsizes['Chromosome'][x] for x in range(len(chromsizes['Chromosome']))]
+
 chromsizes=pr.PyRanges(chromsizes)
 chromsizes
 # +---------------+-----------+-----------+
@@ -158,7 +146,7 @@ with open(outDir + 'consensus_peak_calling/pseudobulk_bed_files/bw_paths.pkl', '
 ##~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 import os
 from pycisTopic.pseudobulk_peak_calling import *
-macs_path="/ceph/project/tsslab/zhu/.conda/envs/macs2_new/bin/macs2"
+macs_path=".conda/envs/macs2_new/bin/macs2"
 macs_outdir = outDir + 'consensus_peak_calling/MACS/'
 if not os.path.exists(macs_outdir):
   os.mkdir(macs_outdir)
@@ -166,7 +154,7 @@ if not os.path.exists(macs_outdir):
 narrow_peaks_dict = peak_calling(macs_path,
                                  bed_paths,
                                  macs_outdir,
-                                 genome_size=1.4e9, ## modified this to zebrafish genome sieze
+                                 genome_size=1.4e9, ## modified this to zebrafish genome size
                                  n_cpu=1,
                                  input_format='BEDPE',
                                  shift=73,
@@ -183,7 +171,7 @@ with open(outDir + 'consensus_peak_calling/MACS/narrow_peaks_dict.pkl', 'wb') as
 from pycisTopic.iterative_peak_calling import *
 # Other param
 peak_half_width=250
-path_to_blacklist="/home/z/zhu/t1data/ref/blacklist/danRer11_blacklist_USCSliftover_20221223_noCHR.bed"
+path_to_blacklist="ref/blacklist/danRer11_blacklist_USCSliftover_20221223_noCHR.bed"
 
 # Get consensus peaks
 consensus_peaks=get_consensus_peaks(narrow_peaks_dict, peak_half_width, 

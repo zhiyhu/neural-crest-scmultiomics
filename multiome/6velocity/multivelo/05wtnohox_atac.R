@@ -10,11 +10,11 @@ library(Seurat)
 library(BSgenome.Drerio.UCSC.danRer11)
 library(GenomeInfoDb)
 
-seu <- readRDS("/ceph/project/tsslab/zhu/multiome/analysis_newref/multivelo2023dec/data/02multiome/nc_multiome_forLinkPeaks.rds")
+seu <- readRDS("multiome/analysis_newref/multivelo2023dec/data/02multiome/nc_multiome_forLinkPeaks.rds")
 seu$stage <- as.character(seu$stage)
 
 # HVG
-hvg <- read.csv("/ceph/project/tsslab/zhu/multiome/analysis_newref/multivelo2023dec/data/wt_nohox/hvg.csv")
+hvg <- read.csv("multiome/analysis_newref/multivelo2023dec/data/wt_nohox/hvg.csv")
 
 # normalize the gene expression data using SCTransform
 DefaultAssay(seu) <- "RNA"
@@ -27,7 +27,7 @@ seqlevelsStyle(BSgenome.Drerio.UCSC.danRer11) <- 'NCBI'
 DefaultAssay(seu) <- "peaks"
 seu <- RegionStats(seu, genome = BSgenome.Drerio.UCSC.danRer11)
 
-saveRDS(seu, "/ceph/project/tsslab/zhu/multiome/analysis_newref/multivelo2023dec/data/multiome/nc_multiome_postRegionStats.rds")
+saveRDS(seu, "multiome/analysis_newref/multivelo2023dec/data/multiome/nc_multiome_postRegionStats.rds")
 
 ## ~~~~~~~~~~~~~~~~~~~~~~~~~
 ## Save data --------------
@@ -43,7 +43,7 @@ seu <- LinkPeaks(
 
 x <- Links(object = seu)
 #
-saveRDS(x, "/ceph/project/tsslab/zhu/multiome/analysis_newref/multivelo2023dec/data/wt_nohox/signac_linkpeaks_hvg.rds")
+saveRDS(x, "multiome/analysis_newref/multivelo2023dec/data/wt_nohox/signac_linkpeaks_hvg.rds")
 
 ## ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 ## Convert to 10x linkage format --------
@@ -56,14 +56,11 @@ library(magrittr)
 
 # Convert the links to 10x Feature Linkage BEDPE format
 # https://support.10xgenomics.com/single-cell-multiome-atac-gex/software/pipelines/latest/output/analysis#tf:~:text=Feature-,Linkage,-Feature%20Linkage%20BEDPE
-peak_annot <- read.delim("/ceph/project/tsslab/zhu/multiome/analysis_newref/multivelo2023dec/data/peaks/multivelo_peakanno_scplus.txt")
+peak_annot <- read.delim("multiome/analysis_newref/multivelo2023dec/data/peaks/multivelo_peakanno_scplus.txt")
 peak_annot$peaks <- paste0("chr",peak_annot$chrom, "-", peak_annot$start, "-", peak_annot$end)
 peak_annot$peak_name <- paste0(peak_annot$gene, "_", peak_annot$peak_type)
 
-x <- readRDS("/ceph/project/tsslab/zhu/multiome/analysis_newref/multivelo2023dec/data/wt_nohox/signac_linkpeaks_hvg.rds")
-table(paste0("chr",x@elementMetadata$peak) %in% peak_annot$peaks)
-# TRUE 
-# 14662
+x <- readRDS("multiome/analysis_newref/multivelo2023dec/data/wt_nohox/signac_linkpeaks_hvg.rds")
 
 seqlevelsStyle(x) <- "UCSC"
 df <- data.frame(chrom1 = 1:length(x@seqnames))
@@ -92,27 +89,26 @@ df$name <- paste0("<",x@elementMetadata$gene,"><",peak_annot$peak_name[match(pea
 head(df)
 
 # write linkage bedpe file
-write.table(df, "/ceph/project/tsslab/zhu/multiome/analysis_newref/multivelo2023dec/data/wt_nohox/signac_feature_linkage_hvg.bedpe", 
+write.table(df, "multiome/analysis_newref/multivelo2023dec/data/wt_nohox/signac_feature_linkage_hvg.bedpe", 
             quote = FALSE, sep = "\t", row.names = FALSE)
 
 ## ~~~~~~~~~~~~~~~~~~~~~~~~~
 ## wildtype
 ## ~~~~~~~~~~~~~~~~~~~~~~~~~
 
-barcodes <- read.delim( "/ceph/project/tsslab/zhu/multiome/analysis_newref/multivelo2023dec/data/wt_nohox/cell_barcodes.txt", header = FALSE)
+barcodes <- read.delim( "multiome/analysis_newref/multivelo2023dec/data/wt_nohox/cell_barcodes.txt", header = FALSE)
 DefaultAssay(seu) <- "peaks"
 seu[["RNA"]] <- NULL
-saveRDS(seu[,barcodes$V1], "/ceph/project/tsslab/zhu/multiome/analysis_newref/multivelo2023dec/data/wt_nohox/atac_seuobj_cistopicPeaks.rds")
+saveRDS(seu[,barcodes$V1], "multiome/analysis_newref/multivelo2023dec/data/wt_nohox/atac_seuobj_cistopicPeaks.rds")
 
 library(SeuratData)
 library(SeuratDisk)
-SaveH5Seurat(seu[,barcodes$V1], filename = "/ceph/project/tsslab/zhu/multiome/analysis_newref/multivelo2023dec/data/wt_nohox/atac_adata_cistopicPeaks.h5Seurat")
-Convert("/ceph/project/tsslab/zhu/multiome/analysis_newref/multivelo2023dec/data/wt_nohox/atac_adata_cistopicPeaks.h5Seurat", dest = "h5ad")
-
+SaveH5Seurat(seu[,barcodes$V1], filename = "multiome/analysis_newref/multivelo2023dec/data/wt_nohox/atac_adata_cistopicPeaks.h5Seurat")
+Convert("multiome/analysis_newref/multivelo2023dec/data/wt_nohox/atac_adata_cistopicPeaks.h5Seurat", dest = "h5ad")
 
 ## ~~~~~~~~~~~~~~~~~~~~~~~~~
-## session info --------------
+## session info ------------
 ## ~~~~~~~~~~~~~~~~~~~~~~~~~
 
 # save sessionInfo for reproducibility ----
-writeLines(capture.output(sessionInfo()), "/ceph/project/tsslab/zhu/multiome/analysis_newref/multivelo2023dec/sessioninfo/wtnohox_atac.txt")
+writeLines(capture.output(sessionInfo()), "multiome/analysis_newref/multivelo2023dec/sessioninfo/wtnohox_atac.txt")

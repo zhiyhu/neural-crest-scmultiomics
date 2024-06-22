@@ -22,8 +22,8 @@ import pyranges
 import sys
 _stderr = sys.stderr
 null = open(os.devnull,'wb')
-work_dir = '/ceph/home/z/zhu/t1data/multiome/analysis_newref/GRN_scenicplus/ncall_2023oct_ccb/output/'
-tmpDir = '/ceph/home/z/zhu/t1data/tmp3/'
+work_dir = 'multiome/analysis_newref/GRN_scenicplus/ncall_2023oct_ccb/output/'
+tmpDir = 'tmp3/'
 
 idx_start = sys.argv[1]
 idx_end = sys.argv[2]
@@ -45,10 +45,7 @@ genes_subset = scplus_obj.gene_names.tolist()[idx_start:idx_end]
 print('Gene subset:', genes_subset)
 
 # from scenicplus.TF_to_gene import *
-# tf_file = '/ceph/home/z/zhu/t1data/multiome/R/GRN_SCENICplus/data/AnimalTFDB4/Danio_rerio_TF_lst.txt'
-tf_file = '/ceph/home/z/zhu/t1data/multiome/analysis_newref/GRN_scenicplus/data/motif/dr11_AnimalTFDB4_DanioCode_TF_lst_curated20230122.txt'
-# sys.path.append("/ceph/home/z/zhu/t1data/multiome/multiome_analysis/GRN_SCENICplus/code")
-# import scenicplus_tf2g_subset
+tf_file = 'multiome/analysis_newref/GRN_scenicplus/data/motif/dr11_AnimalTFDB4_DanioCode_TF_lst_curated20230122.txt'
 
 SGBM_KWARGS = {
     'learning_rate': 0.01,
@@ -62,7 +59,7 @@ method_params = [
 ]
 
 print(method_params)
-sys.path.append("/ceph/home/z/zhu/t1data/multiome/analysis_newref/GRN_scenicplus/code/custom_functions")
+sys.path.append("multiome/analysis_newref/GRN_scenicplus/code/custom_functions")
 import functions_tf2g_subset
 tf2g_adj = functions_tf2g_subset.calculate_TFs_to_genes_relationships_my(scplus_obj,
                     tf_file = tf_file,

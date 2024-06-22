@@ -17,7 +17,7 @@ library(plyranges)
 for(i in seq(0,27000,1000)){
   start <- i
   end <- i + 999
-  tmp <- readRDS(paste0("/ceph/project/tsslab/zhu/multiome/analysis_newref/multivelo2023dec/data/03peaks/signac_linkpeaks_",start,"_",end,".rds" ))
+  tmp <- readRDS(paste0("multiome/analysis_newref/multivelo2023dec/data/03peaks/signac_linkpeaks_",start,"_",end,".rds" ))
   if(i == 0){
     x <- tmp
   } else {
@@ -36,7 +36,7 @@ library(magrittr)
 
 # Convert the links to 10x Feature Linkage BEDPE format
 # https://support.10xgenomics.com/single-cell-multiome-atac-gex/software/pipelines/latest/output/analysis#tf:~:text=Feature-,Linkage,-Feature%20Linkage%20BEDPE
-peak_annot <- read.delim("/ceph/project/tsslab/zhu/multiome/analysis_newref/multivelo2023dec/data/01peaks/multivelo_peakanno_scplus.txt")
+peak_annot <- read.delim("multiome/analysis_newref/multivelo2023dec/data/01peaks/multivelo_peakanno_scplus.txt")
 peak_annot$peaks <- paste0("chr",peak_annot$chrom, "-", peak_annot$start, "-", peak_annot$end)
 peak_annot$peak_name <- paste0(peak_annot$gene, "_", peak_annot$peak_type)
 
@@ -68,9 +68,7 @@ df$linkage_type <- "gene-peak"
 peaks_df <- paste0("chr",x@elementMetadata$peak)
 # the gene-peak order in name needs to be the same as the one in the linkage type
 df$name <- paste0("<",x@elementMetadata$gene,"><",peak_annot$peak_name[match(peaks_df, peak_annot$peaks)], ">")
-print(head(df))
-print(dim(df))
 
 # write linkage bedpe file
-write.table(df, "/ceph/home/z/zhu/t1data/multiome/analysis_newref/multivelo2023dec/data/03feature_linkage/signac_feature_linkage_all.bedpe", 
+write.table(df, "multiome/analysis_newref/multivelo2023dec/data/03feature_linkage/signac_feature_linkage_all.bedpe", 
             quote = FALSE, sep = "\t", row.names = FALSE)

@@ -28,13 +28,13 @@ names(col.ls) <- NULL
 ## Read data
 
 ```{r read data}
-seu <- readRDS("/ceph/project/tsslab/zhu/multiome/analysis_newref/clustering/rds/seuobj_rna/seu_RNAsoupx64340_clustered.rds")
+seu <- readRDS("multiome/analysis_newref/clustering/rds/seuobj_rna/seu_RNAsoupx64340_clustered.rds")
 
-metadata_pred <- readRDS("/ceph/project/tsslab/zhu/multiome/analysis_newref/integration/data/cell_type_classification/multiome64340_metadata_bywagner2018.rds")
+metadata_pred <- readRDS("multiome/analysis_newref/integration/data/cell_type_classification/multiome64340_metadata_bywagner2018.rds")
 seu$ClusterName_predicted <- metadata_pred$ClusterName_short_predicted
 seu$TissueName_predicted <- metadata_pred$TissueName_predicted
 
-nc.markers <- read.csv("/ceph/project/tsslab/zhu/multiome/analysis_newref/clustering/results/seu_RNAsoupx64340_markers_20221226.csv")
+nc.markers <- read.csv("multiome/analysis_newref/clustering/results/seu_RNAsoupx64340_markers_20221226.csv")
 ```
 
 
@@ -49,7 +49,7 @@ p1
 ```
 
 ```{r}
-ggsave("/Filers/home/z/zhu/t1data/multiome/analysis_newref/clustering/figures/for_pre/allcells_umap_TissueName_predicted.pdf", p1)
+ggsave("multiome/analysis_newref/clustering/figures/for_pre/allcells_umap_TissueName_predicted.pdf", p1)
 ```
 
 ```{r}
@@ -90,7 +90,7 @@ p1
 ```
 
 ```{r}
-ggsave("/Filers/home/z/zhu/t1data/multiome/analysis_newref/clustering/figures/for_pre/allcells_umap_ClusterName_predicted.pdf", p1)
+ggsave("multiome/analysis_newref/clustering/figures/for_pre/allcells_umap_ClusterName_predicted.pdf", p1)
 ```
 
 Parsing the cluster names
@@ -147,7 +147,7 @@ p1
 ```
 
 ```{r}
-ggsave("/Filers/home/z/zhu/t1data/multiome/analysis_newref/clustering/figures/for_pre/allcells_umap_cellType_predicted.pdf", p1, width = 18, height = 12)
+ggsave("multiome/analysis_newref/clustering/figures/for_pre/allcells_umap_cellType_predicted.pdf", p1, width = 18, height = 12)
 ```
 
 ```{r}

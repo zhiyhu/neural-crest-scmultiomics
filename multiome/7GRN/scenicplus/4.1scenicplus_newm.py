@@ -9,7 +9,7 @@
 ##~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 # reticulate::use_condaenv("scenicplus")
 # Refer to https://scenicplus.readthedocs.io/en/latest/Scenicplus_step_by_step-RTD.html
-# /ceph/home/z/zhu/t1data/multiome/analysis_newref/GRN_scenicplus/ncall_2023oct_ccb/code/4.1scenicplus_newm.py
+# multiome/analysis_newref/GRN_scenicplus/ncall_2023oct_ccb/code/4.1scenicplus_newm.py
 import dill
 import scanpy as sc
 import numpy as np
@@ -23,18 +23,13 @@ import pyranges
 import sys
 _stderr = sys.stderr
 null = open(os.devnull,'wb')
-work_dir = '/ceph/home/z/zhu/t1data/multiome/analysis_newref/GRN_scenicplus/ncall_2023oct_ccb/output'
-tmpDir = '/ceph/home/z/zhu/t1data/multiome/analysis_newref/GRN_scenicplus/ncall_2023oct_ccb/tmp'
-old_work_dir = '/ceph/home/z/zhu/t1data/multiome/analysis_newref/GRN_scenicplus/ncall/output'
+work_dir = 'multiome/analysis_newref/GRN_scenicplus/ncall_2023oct_ccb/output'
+tmpDir = 'multiome/analysis_newref/GRN_scenicplus/ncall_2023oct_ccb/tmp'
+old_work_dir = 'multiome/analysis_newref/GRN_scenicplus/ncall/output'
 
 # Read RNA data
-rna = '/ceph/home/z/zhu/t1data/multiome/analysis_newref/GRN_scenicplus/ncall/scRNA/adata_ncall.h5ad'
+rna = 'multiome/analysis_newref/GRN_scenicplus/ncall/scRNA/adata_ncall.h5ad'
 adata = sc.read_h5ad(rna)
-# adata.var_names = adata.var['_index']
-
-# import pickle
-# with open(work_dir + '../scRNA/metadata_bc.pkl', 'wb') as f:
-#   pickle.dump(adata.obs_names, f)
 
 # Read Cistopic obj and motif enrichment results
 cistopic_obj = dill.load(open(os.path.join(work_dir, 'cisTopicObject.pkl'), 'rb'))
@@ -151,8 +146,8 @@ biomart_host = "http://dec2021.archive.ensembl.org/"
 # download a list of known human TFs
 # !wget -O pbmc_tutorial/data/utoronto_human_tfs_v_1.01.txt  http://humantfs.ccbr.utoronto.ca/download/v_1.01/TF_names_v_1.01.txt
 # # download a the program bedToBigBed this will be used to generate files which can be uploaded to the UCSC genome browser
-# !wget -O /ceph/home/z/zhu/t1data/multiome/R/GRN_SCENICplus/test/bedToBigBed http://hgdownload.soe.ucsc.edu/admin/exe/linux.x86_64/bedToBigBed
-# !chmod +x /ceph/home/z/zhu/t1data/multiome/R/GRN_SCENICplus/test/bedToBigBed
+# !wget -O multiome/R/GRN_SCENICplus/test/bedToBigBed http://hgdownload.soe.ucsc.edu/admin/exe/linux.x86_64/bedToBigBed
+# !chmod +x multiome/R/GRN_SCENICplus/test/bedToBigBed
  
 ############################################
 # Get chromosome sizes (for danRer11 here) #
@@ -160,7 +155,7 @@ biomart_host = "http://dec2021.archive.ensembl.org/"
 import pyranges as pr
 import requests
 # target_url='http://hgdownload.cse.ucsc.edu/goldenPath/danRer11/bigZips/danRer11.chrom.sizes     ' # modified to zebrafish
-target_url="/ceph/home/z/zhu/t1data/ref/ensembl105/cellranger_arc/GRCz11_ensembl105_foxd3_cellranger_arc/star/chrNameLength.txt"
+target_url="ref/ensembl105/cellranger_arc/GRCz11_ensembl105_foxd3_cellranger_arc/star/chrNameLength.txt"
 chromsizes=pd.read_csv(target_url, sep='\t', header=None)
 chromsizes.columns=['Chromosome', 'End']
 chromsizes['Start']=[0]*chromsizes.shape[0]
@@ -175,7 +170,7 @@ import pybiomart as pbm
 # For zebrafish
 dataset = pbm.Dataset(name='drerio_gene_ensembl',  host='http://dec2021.archive.ensembl.org/')
 import pandas as pd
-annot = pd.read_csv("/ceph/home/z/zhu/t1data/multiome/analysis_newref/GRN_scenicplus/data/gene_annot/pybiomart_drerio_gene_ensembl105_scplus4.1_geneNameMatched.csv")
+annot = pd.read_csv("multiome/analysis_newref/GRN_scenicplus/data/gene_annot/pybiomart_drerio_gene_ensembl105_scplus4.1_geneNameMatched.csv")
 annot.Strand[annot.Strand == 1] = '+'
 annot.Strand[annot.Strand == -1] = '-'
 annot = pr.PyRanges(annot)
@@ -183,7 +178,7 @@ annot
 
 # A. Get search space ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 from scenicplus.enhancer_to_gene import calculate_regions_to_genes_relationships, GBM_KWARGS
-sys.path.append('/ceph/home/z/zhu/t1data/multiome/R/GRN_SCENICplus/code')
+sys.path.append('multiome/R/GRN_SCENICplus/code')
 import scenicplus_functions
 scenicplus_functions.get_search_space_my(scplus_obj,
                  pr_annot=annot,

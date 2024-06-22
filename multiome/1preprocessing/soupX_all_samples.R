@@ -18,7 +18,7 @@ setwd("/home/z/zhu/t1data/multiome/analysis_newref/")
 # Load data and estimate soup profile
 sc = load10X("cellranger_arc/output/scmo_s1/outs/")
 # Estimate rho
-png("~/t1data/multiome/analysis_newref/ambient_rna_removal/soupx/figures/soupx_rho_s1.png")
+png("multiome/analysis_newref/ambient_rna_removal/soupx/figures/soupx_rho_s1.png")
 sc = autoEstCont(sc)
 dev.off()
 # Clean the data
@@ -37,7 +37,7 @@ gc()
 sc = load10X("cellranger_arc/output/scmo_s2/outs")
 
 # Estimate rho
-png("~/t1data/multiome/analysis_newref/ambient_rna_removal/soupx/figures/soupx_rho_s2.png")
+png("multiome/analysis_newref/ambient_rna_removal/soupx/figures/soupx_rho_s2.png")
 sc = autoEstCont(sc)
 dev.off()
 # Clean the data
@@ -55,7 +55,7 @@ gc()
 sc = load10X("cellranger_arc/output/scmo_s3/outs")
 
 # Estimate rho
-png("~/t1data/multiome/analysis_newref/ambient_rna_removal/soupx/figures/soupx_rho_s3.png")
+png("multiome/analysis_newref/ambient_rna_removal/soupx/figures/soupx_rho_s3.png")
 sc = autoEstCont(sc)
 dev.off()
 # Clean the data
@@ -72,7 +72,7 @@ gc()
 # Load data and estimate soup profile
 sc = load10X("cellranger_arc/output/scmo_s4/outs")
 # Estimate rho
-png("~/t1data/multiome/analysis_newref/ambient_rna_removal/soupx/figures/soupx_rho_s4.png")
+png("multiome/analysis_newref/ambient_rna_removal/soupx/figures/soupx_rho_s4.png")
 sc = autoEstCont(sc)
 dev.off()
 # Clean the data
@@ -89,7 +89,7 @@ gc()
 # Load data and estimate soup profile
 sc = load10X("cellranger_arc/output/scmo_s5/outs")
 # Estimate rho
-png("~/t1data/multiome/analysis_newref/ambient_rna_removal/soupx/figures/soupx_rho_s5.png")
+png("multiome/analysis_newref/ambient_rna_removal/soupx/figures/soupx_rho_s5.png")
 sc = autoEstCont(sc)
 dev.off()
 # Clean the data
@@ -107,7 +107,7 @@ gc()
 # Load data and estimate soup profile
 sc = load10X("cellranger_arc/output/scmo_s6/outs")
 # Estimate rho
-png("~/t1data/multiome/analysis_newref/ambient_rna_removal/soupx/figures/soupx_rho_s6.png")
+png("multiome/analysis_newref/ambient_rna_removal/soupx/figures/soupx_rho_s6.png")
 sc = autoEstCont(sc)
 dev.off()
 # Clean the data
@@ -119,30 +119,13 @@ gc()
 
 
 ##----------##
-## S7       ##
-##----------##
-
-# # Load data and estimate soup profile
-# sc = load10X("cellranger_arc/output/scmo_s7/outs")
-# # Estimate rho
-# png("~/t1data/multiome/analysis_newref/ambient_rna_removal/soupx/figures/soupx_rho_s7.png")
-# sc = autoEstCont(sc)
-# dev.off()
-# # Clean the data
-# out = adjustCounts(sc)
-# 
-# DropletUtils:::write10xCounts("cellranger_arc/output/scmo_s7/outs/strainedCounts_soupX", out)
-# rm(sc, out)
-# gc()
-
-##----------##
 ## S8       ##
 ##----------##
 
 # Load data and estimate soup profile
 sc = load10X("cellranger_arc/output/scmo_s8/outs")
 # Estimate rho
-png("~/t1data/multiome/analysis_newref/ambient_rna_removal/soupx/figures/soupx_rho_s8.png")
+png("multiome/analysis_newref/ambient_rna_removal/soupx/figures/soupx_rho_s8.png")
 sc = autoEstCont(sc)
 dev.off()
 # Clean the data

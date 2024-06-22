@@ -18,11 +18,11 @@ library(ggplot2)
 # Cherry_1_NEBNext_i706_Primer  
 # Cherry_2_NEBNext_i707_Primer  
 
-setwd("/home/z/zhu/t1data/multiome/analysis_newref/")
+setwd("multiome/analysis_newref/")
 #------
 # seurat metadata of anterior NC
 
-seu <- readRDS("/t1-data/project/tsslab/zhu/multiome/analysis_newref/clustering/rds/seuobj_rna/seu_RNAsoupx_NC.rds")
+seu <- readRDS("multiome/analysis_newref/clustering/rds/seuobj_rna/seu_RNAsoupx_NC.rds")
 metadata <- seu@meta.data
 
 #---------------------------------
@@ -33,7 +33,7 @@ for(sample_itor in paste0("s", 1:8)){
   txi <- list()
 
   for(i in 1:7){
-    txi[[i]] <- tximport(paste0("/home/z/zhu/t1data/multiome/runs/amplicon10x/data/alevin_output/", 
+    txi[[i]] <- tximport(paste0("multiome/runs/amplicon10x/data/alevin_output/", 
                                 sample_itor, "-", i, "/alevin/"), type="alevin")$counts
     txi[[i]] <- t(as.matrix(txi[[i]]))
     colnames(txi[[i]]) <- paste0(colnames(txi[[i]]), "_primer",i)

@@ -8,7 +8,6 @@
 module load homer/20201202
 module load bedtools/2.29.2
 
-wkdir=/ceph/project/tsslab/zhu
 bed=${wkdir}/multiome/analysis_newref/GRN_scenicplus/ncall_2023oct_ccb/output/consensus_peak_calling/consensus_regions.bed
 filteredbed=${wkdir}/multiome/analysis_newref/GRN_scenicplus/ncall_2023oct_ccb/output/consensus_peak_calling/consensus_regions_filtered.bed
 out=${wkdir}/multiome/analysis_newref/multivelo2023dec/data/01peaks/homerannot_peaks_scplus.txt

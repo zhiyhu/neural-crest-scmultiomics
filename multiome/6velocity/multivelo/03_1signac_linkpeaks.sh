@@ -7,5 +7,5 @@
 module load R-cbrg/current
 
 echo $1
-Rscript /ceph/home/z/zhu/t1data/multiome/analysis_newref/multivelo2023dec/scripts/03_1signac_linkpeaks.R $1
+Rscript multiome/analysis_newref/multivelo2023dec/scripts/03_1signac_linkpeaks.R $1
 

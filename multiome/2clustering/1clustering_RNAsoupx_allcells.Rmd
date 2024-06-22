@@ -23,7 +23,7 @@ names(col.ls) <- NULL
 # Read data
 
 ```{r read data}
-seu <- readRDS("/t1-data/project/tsslab/zhu/multiome/analysis_newref/preprocessing/rds/rna_atac_singlet/seuobj_rna64340.rds")
+seu <- readRDS("multiome/analysis_newref/preprocessing/rds/rna_atac_singlet/seuobj_rna64340.rds")
 dim(seu)
 ```
 
@@ -152,30 +152,10 @@ nc.markers %>% group_by(cluster) %>% top_n(n = 2, wt = avg_log2FC) -> top2
 top2
 ```
 
-```{r, fig.height=10, fig.width=12}
-# top5 <- nc.markers %>% group_by(cluster) %>% top_n(n = 5, wt = avg_log2FC)
-# DoHeatmap(nc_wt, features = (top5$gene))
-```
-
-
-```{r, fig.width=12, fig.height=8}
-# df <- data.frame(
-#   clusters = 0:22,
-#   names = c("NC","neural cells (ncam1a+)", "hindbrain NC (fn1b+)","NC neural","notochord", # 0to4
-#             "polster (low nfeature)","epidermis","cranial cartilage (col12a1b+)","cranial cartilage (col11a1b+)",# 5to8
-#             "mut-specific (lmx1bb+)","primordial germ cells","mesodermal","pigment", # 9to12
-#             "ciliated (dnah2)","sensory","periderm","skeletal mucsle","vascular tubulogenesis",  # 13-17
-#             "polster","erythropoiesis","low nfeature","myeloid","retinal development" # 18-22
-#             )
-# )
-# seu$cell_types <- df$names[match(seu$seurat_clusters, df$clusters)]
-# 
-# DimPlot(seu, label = TRUE, group.by = "cell_types",reduction = "umap")
-```
 
 ```{r}
-saveRDS(seu, "/t1-data/project/tsslab/zhu/multiome/analysis_newref/clustering/rds/seuobj_rna/seu_RNAsoupx64340_clustered.rds")
-write.csv(nc.markers, "/t1-data/project/tsslab/zhu/multiome/analysis_newref/clustering/results/seu_RNAsoupx64340_markers_20221226.csv")
+saveRDS(seu, "multiome/analysis_newref/clustering/rds/seuobj_rna/seu_RNAsoupx64340_clustered.rds")
+write.csv(nc.markers, "multiome/analysis_newref/clustering/results/seu_RNAsoupx64340_markers_20221226.csv")
 ```
 
 # Technical

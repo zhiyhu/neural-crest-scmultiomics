@@ -19,7 +19,7 @@ scv.logging.print_version()
 scv.settings.verbosity = 3  # show errors(0), warnings(1), info(2), hints(3)
 scv.settings.presenter_view = True  # set max width size for presenter view
 scv.set_figure_params('scvelo')  # for beautified visualization
-os.chdir('/ceph/project/tsslab/zhu/multiome/analysis_newref/velocity/')
+os.chdir('multiome/analysis_newref/velocity/')
 
 proj="scvelo_mut_uncorrected"
 
@@ -44,12 +44,7 @@ scv.pl.proportions(adata, groupby = 'sample', save="../velocity/figures/"+proj+"
 adata.var_names=adata.var["features"]
 sc.pl.highest_expr_genes(adata, n_top=20)
 
-# # check gene expression 
-# max(adata.to_df()['rplp1'])
-
 ###  Preprocessing the data
-# adata_full = adata # keep original data
-# adata_full 
 scv.pp.filter_genes(adata, min_shared_counts=20)
 scv.pp.normalize_per_cell(adata,enforce=True)
 scv.pp.filter_genes_dispersion(adata, n_top_genes=2000)
@@ -65,7 +60,6 @@ scv.tl.velocity(adata)
 scv.tl.velocity_graph(adata)
 
 ### Project the velocities
-
 scv.pl.velocity_embedding(adata, basis='tsne', color='seurat_clusters', arrow_length=3, arrow_size=2, dpi = 120,
 save="../velocity/figures/"+proj+"/scvelo_velocity_embedding.pdf")
 scv.pl.velocity_embedding_grid(adata, basis='tsne', color='seurat_clusters',arrow_length=3, 
@@ -185,15 +179,9 @@ adata.var_names=adata.var["features"]
 scv.tl.rank_velocity_genes(adata, groupby='seurat_clusters', min_corr=.3)
 
 df = scv.DataFrame(adata.uns['rank_velocity_genes']['names'])
-df.head()
-
-df.columns
-
-df.loc[0:6,:].shape
 for x in ['4', '7', '9', '12', '13', '14', '15', '16', '17', '18', '19', '20']:
   scv.pl.velocity(adata, df[x][0:6], basis = "tsne", color="seurat_clusters", ncols=2,
   save="../velocity/figures/"+proj+"/NC_velocity_Cluster"+x+"_top6.pdf")
-
 
 ###--------------------------------
 ### dynamical modelling

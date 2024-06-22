@@ -3,39 +3,27 @@ library(Seurat)
 library(Signac)
 library(SeuratData)
 library(SeuratDisk)
-setwd("~/t1data/multiome/analysis_newref/multivelo2023dec")
+setwd("multiome/analysis_newref/multivelo2023dec")
 proj="wt_nohox_uncorrected"
-workdir="/ceph/project/tsslab/zhu/multiome/analysis_newref/multivelo2023dec/"
+workdir="multiome/analysis_newref/multivelo2023dec/"
 
 # preprocess RNA-----
 seu <- readRDS(paste0(workdir, "data/02multiome/nc_multiome_forLinkPeaks.rds"))
-seu
-# An object of class Seurat 
-# 303178 features across 16550 samples within 2 assays 
-# Active assay: RNA (27599 features, 2000 variable features)
-# 1 other assay present: peaks
-# 3 dimensional reductions calculated: pca, umap, tsne
 
 # wildtype
-# barcodes <- read.delim("/ceph/project/tsslab/zhu/multiome/analysis_newref/multivelo/data/wt_nohox/cell_barcodes.txt", header = FALSE)
+
 # keep only cells
 barcodes <- read.delim(paste0(workdir, "data/",proj,"/filtered_cells.txt"), header = FALSE)
-dim(barcodes)
-# [1] 5692    1
 seu <- seu[,barcodes$V1]
-table(seu$sample)
-# 10cit  16cit  22cit 22cit2   4mix 
-# 1355   1084   2971     33    316 
 
 ## Only keep protein coding genes
 DefaultAssay(seu) <- "RNA"
-dr11 <- rtracklayer::import("/ceph/project/tsslab/zhu/ref/ensembl105/cellranger_arc/GRCz11_ensembl105_foxd3_cellranger_arc/genes/genes.gtf.gz")
+dr11 <- rtracklayer::import("ref/ensembl105/cellranger_arc/GRCz11_ensembl105_foxd3_cellranger_arc/genes/genes.gtf.gz")
 dr11 <- dr11[dr11$gene_biotype == "protein_coding" & dr11$type == "gene",]
 idx <- rownames(seu[["RNA"]]@counts) %in% dr11$gene_name | rownames(seu[["RNA"]]@counts) %in% dr11$gene_id
 table(idx)
 kept_genes <- rownames(seu[["RNA"]]@counts)[idx]
 seu[["RNA"]] <- CreateAssayObject(counts = seu[["RNA"]]@counts[kept_genes,])
-seu
 
 seu <- NormalizeData(seu)
 seu <- FindVariableFeatures(seu)
@@ -69,15 +57,11 @@ write.table(nn_idx, "seurat_wnn/nn_idx.txt", sep = ',', row.names = F, col.names
 write.table(nn_dist, "seurat_wnn/nn_dist.txt", sep = ',', row.names = F, col.names = F, quote = F)
 write.table(nn_cells, "seurat_wnn/nn_cells.txt", sep = ',', row.names = F, col.names = F, quote = F)
 write.table(colnames(seu), file = "seurat_wnn/kept_barcodes.txt", sep = "\t",quote = FALSE)
+
 #Additional visualisation
 # add metadata
 
-# nn_idx_old <- read.table(paste0(workdir, "data/",proj,"/seurat_wnn/nn_idx.txt"), sep = ',',row.names = NULL, header = F)
-# sum(abs(nn_idx_old-nn_idx))
-# nn_dist_old <- read.table(paste0(workdir, "data/",proj,"/seurat_wnn/nn_dist.txt"), sep = ',',row.names = NULL, header = F)
-# sum(abs(nn_dist_old-nn_dist))
-
-metadata <- readRDS("/ceph/project/tsslab/zhu/multiome/analysis_newref/clustering/rds/metadata/seu_RNAsoupx_NC_metadata.rds")
+metadata <- readRDS("multiome/analysis_newref/clustering/rds/metadata/seu_RNAsoupx_NC_metadata.rds")
 metadata <- metadata[barcodes$V1, ]
 seu$cell_type <- metadata$cell_type
 seu$genotype_new <- metadata$genotype_new

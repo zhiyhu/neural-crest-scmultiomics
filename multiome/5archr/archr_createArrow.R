@@ -23,7 +23,7 @@ library(BSgenome.Drerio.UCSC.danRer11)
 addArchRThreads(threads = 24) 
 samples=1:8
 
-setwd('/t1-data/project/tsslab/zhu/multiome/analysis_newref/archr/')
+setwd('multiome/analysis_newref/archr/')
 
 #~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 # Creating Arrow Files--------
@@ -32,7 +32,7 @@ setwd('/t1-data/project/tsslab/zhu/multiome/analysis_newref/archr/')
 print("Creating Arrow Files")
 
 # this is pre-run
-inputFiles <- paste0("/t1-data/project/tsslab/zhu/multiome/analysis_newref/cellranger_arc/output/scmo_s", samples, "/outs/atac_fragments.tsv.gz")
+inputFiles <- paste0("multiome/analysis_newref/cellranger_arc/output/scmo_s", samples, "/outs/atac_fragments.tsv.gz")
 names(inputFiles) <- paste0("scmo_s", samples)
 # see https://github.com/GreenleafLab/ArchR/issues/302
 # input files need to be in gz format

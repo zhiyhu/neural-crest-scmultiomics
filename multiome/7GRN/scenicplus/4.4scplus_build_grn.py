@@ -5,7 +5,7 @@
 ## last modified 15 dec 2023
 ##~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 # reticulate::use_condaenv("scenicplus")
-# /ceph/home/z/zhu/t1data/multiome/analysis_newref/GRN_scenicplus/ncall_2023oct_ccb/code/4.4scplus_build_grn.py
+# multiome/analysis_newref/GRN_scenicplus/ncall_2023oct_ccb/code/4.4scplus_build_grn.py
 import dill
 import scanpy as sc
 import numpy as np
@@ -19,8 +19,8 @@ import pyranges
 import sys
 _stderr = sys.stderr
 null = open(os.devnull,'wb')
-work_dir = '/ceph/home/z/zhu/t1data/multiome/analysis_newref/GRN_scenicplus/ncall_2023oct_ccb/output/'
-tmpDir = '/ceph/home/z/zhu/t1data/tmp'
+work_dir = 'multiome/analysis_newref/GRN_scenicplus/ncall_2023oct_ccb/output/'
+tmpDir = 'tmp'
 r2gdir=work_dir + 'scenicplus/r2g_adj/'
 tf2gdir=work_dir + 'scenicplus/tf2g_adj_ss0.2_lr0.01/'
 

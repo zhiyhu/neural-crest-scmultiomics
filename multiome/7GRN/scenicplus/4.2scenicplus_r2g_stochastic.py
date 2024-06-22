@@ -21,8 +21,8 @@ import pyranges
 import sys
 _stderr = sys.stderr
 null = open(os.devnull,'wb')
-work_dir = '/ceph/home/z/zhu/t1data/multiome/analysis_newref/GRN_scenicplus/ncall_2023oct_ccb/output/'
-tmpDir = '/ceph/home/z/zhu/t1data/tmp3'
+work_dir = 'multiome/analysis_newref/GRN_scenicplus/ncall_2023oct_ccb/output/'
+tmpDir = 'tmp3'
 ray_n_cpu = 48
 
 ### start and end index
@@ -49,7 +49,7 @@ genes_subset = scplus_obj.gene_names.tolist()[idx_start:idx_end]
 print('Gene subset:', genes_subset)
 
 # from scenicplus.enhancer_to_gene import calculate_regions_to_genes_relationships
-sys.path.append('/ceph/home/z/zhu/t1data/multiome/analysis_newref/GRN_scenicplus/code/custom_functions')
+sys.path.append('multiome/analysis_newref/GRN_scenicplus/code/custom_functions')
 import enhancer_to_gene_my 
 
 SGBM_KWARGS = {
@@ -68,7 +68,6 @@ r2g_adj=enhancer_to_gene_my.calculate_regions_to_genes_relationships(scplus_obj,
                     importance_scoring_kwargs = SGBM_KWARGS, inplace = False)
 
 print("Calculate_regions_to_genes_relationships done")
-
 
 # Save
 if not os.path.exists(os.path.join(work_dir, 'scenicplus/r2g_adj')):

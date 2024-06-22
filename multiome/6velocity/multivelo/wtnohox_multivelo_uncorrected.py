@@ -1,5 +1,5 @@
 # Run multivelo on the data anterior NC-mutant
-# /ceph/project/tsslab/zhu/multiome/analysis_newref/multivelo2023dec/code/wtnohox_multivelo_uncorrected.py
+# multiome/analysis_newref/multivelo2023dec/code/wtnohox_multivelo_uncorrected.py
 # Zhiyuan Hu
 # 23 Feb 2023
 # last modified 29 dec 2023
@@ -21,7 +21,7 @@ import matplotlib.pyplot as plt
 # import velocyto as vcy
 
 # directories
-workdir="/ceph/project/tsslab/zhu/multiome/analysis_newref/multivelo2023dec/"
+workdir="multiome/analysis_newref/multivelo2023dec/"
 figdir=workdir+'figures/wt_nohox_uncorrected/'
 datadir=workdir+'data/wt_nohox_uncorrected/'
 os.chdir(workdir)
@@ -49,8 +49,6 @@ adata_rna_raw = adata_rna
 
 sc.pp.filter_cells(adata_rna, min_counts=1000)
 sc.pp.filter_cells(adata_rna, max_counts=20000)
-adata_rna
-# AnnData object with n_obs × n_vars = 6957 × 24773
 
 scv.pp.filter_genes(adata_rna, min_shared_counts=10)
 scv.pp.normalize_per_cell(adata_rna, enforce=True)
@@ -62,23 +60,19 @@ adata_rna
 #~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 # Preprocessing the ATAC counts
 #~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
-adata_atac = sc.read("/ceph/project/tsslab/zhu/multiome/analysis_newref/multivelo2023dec/data/wt_nohox/atac_adata_cistopicPeaks.h5ad")
-adata_atac
-# AnnData object with n_obs × n_vars = 6970 × 275579
+adata_atac = sc.read("multiome/analysis_newref/multivelo2023dec/data/wt_nohox/atac_adata_cistopicPeaks.h5ad")
 
 # We aggregate peaks around each gene as well as those that have high correlations with promoter peak or gene expression.
 # Peak annotation contains the metadata for all peaks.
 # Feature linkage contains pairs of correlated genomic features.
 import sys
-sys.path.append("/ceph/project/tsslab/zhu/multiome/R/multivelo/code/multivelo_modified")
+sys.path.append("multiome/R/multivelo/code/multivelo_modified")
 import aggregate_peaks_10x
 
 adata_atac = aggregate_peaks_10x.aggregate_peaks_10x_my(adata_atac,
-                                    peak_annot_file = '/ceph/project/tsslab/zhu/multiome/analysis_newref/multivelo2023dec/data/01peaks/multivelo_peakanno_scplus.txt',
-                                    linkage_file = '/ceph/project/tsslab/zhu/multiome/analysis_newref/multivelo2023dec/data/03feature_linkage/signac_feature_linkage_all.bedpe',
+                                    peak_annot_file = 'multiome/analysis_newref/multivelo2023dec/data/01peaks/multivelo_peakanno_scplus.txt',
+                                    linkage_file = 'multiome/analysis_newref/multivelo2023dec/data/03feature_linkage/signac_feature_linkage_all.bedpe',
                                     verbose=True)
-adata_atac
-# View of AnnData object with n_obs × n_vars = 6970 × 15436
 
 # Let's examine the total count distribution and remove outliers.
 plt.hist(adata_atac.X.sum(1), bins=100, range=(0, 100000))     
@@ -93,9 +87,6 @@ sc.pp.filter_cells(adata_atac, max_counts=60000)
 # We normalize aggregated peaks with TF-IDF.
 mv.tfidf_norm(adata_atac)
 
-adata_atac
-# AnnData object with n_obs × n_vars = 5698 × 15436
-#     obs: 'n_counts'
 #~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 # Finding shared barcodes and features between RNA and ATAC
 #~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
@@ -142,7 +133,7 @@ adata_rna.obs_names.to_frame().to_csv('filtered_cells.txt', header=False, index=
 # run /ceph/home/z/zhu/t1data/multiome/analysis_newref/multivelo2023dec/code/wtnohox_seurat_wnn.R
 
 # Read in Seurat WNN neighbors.
-os.chdir('/ceph/project/tsslab/zhu/multiome/analysis_newref/multivelo2023dec/data/wt_nohox_uncorrected/')
+os.chdir('multiome/analysis_newref/multivelo2023dec/data/wt_nohox_uncorrected/')
 nn_idx = np.loadtxt("seurat_wnn/nn_idx.txt", delimiter=',')
 nn_dist = np.loadtxt("seurat_wnn/nn_dist.txt", delimiter=',')
 nn_cells = pd.Index(pd.read_csv("seurat_wnn/nn_cells.txt", header=None)[0])
@@ -178,8 +169,6 @@ adata_result.__dict__['_raw'].__dict__['_var'] = adata_result.__dict__['_raw']._
 del adata_result.var["_index"]
 adata_result.write(datadir+"multivelo_result.h5ad")
 
-# adata_result = sc.read_h5ad(datadir+"multivelo_result.h5ad")
-
 # plot
 mv.pie_summary(adata_result)
 plt.savefig(figdir+'multivelo_pie_summary.pdf')
@@ -197,7 +186,7 @@ plt.savefig(figdir+'multivelo_likelihood_plot.pdf')
 # ----------------------------------------- #
 
 mv.velocity_graph(adata_result)
-mv.latent_time(adata_result) # adata.uns['iroot'] vkey='velo_u',root_key
+mv.latent_time(adata_result)
 
 scv.tl.velocity_pseudotime(adata_result,vkey='velo_s'+'_norm')
 
@@ -218,7 +207,7 @@ plt.savefig(figdir+'multivelo_velocity_embedding_stream.png')
 
 # a new figure for the presentation
 ## add the new colour panel here
-colours_df=pd.read_csv("/Filers/home/z/zhu/t1data/multiome/analysis_newref/clustering/figures/for_pre/df_coloursUserd.csv")
+colours_df=pd.read_csv("multiome/analysis_newref/clustering/figures/for_pre/df_coloursUserd.csv")
 # Convert the first and third columns to a dictionary
 col_dict = dict(zip(colours_df['cell_type'].tolist(), colours_df['colour'].tolist()))
 

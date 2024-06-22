@@ -5,7 +5,7 @@
 ## last modified 24 oct 2023
 ##~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 # reticulate::use_condaenv("scenicplus")
-# /ceph/home/z/zhu/t1data/multiome/analysis_newref/GRN_scenicplus/ncall_2023oct_ccb/code/3pycistarget_newm.py
+# multiome/analysis_newref/GRN_scenicplus/ncall_2023oct_ccb/code/3pycistarget_newm.py
 import pycistarget
 import pandas as pd 
 import os
@@ -13,15 +13,15 @@ pycistarget.__version__
 
 
 # Project directory
-projDir = '/ceph/home/z/zhu/t1data/multiome/analysis_newref/GRN_scenicplus/ncall_2023oct_ccb/'
+projDir = 'multiome/analysis_newref/GRN_scenicplus/ncall_2023oct_ccb/'
 
 # Output directory
 work_dir=projDir + 'output/'
 proj='ncall_2023oct_ccb'
 
 # tmp directort
-tmpDir = '/ceph/home/z/zhu/t1data/multiome/analysis_newref/GRN_scenicplus/ncall_2023oct_ccb/tmp/'
-tmp_dir='/ceph/home/z/zhu/t1data/multiome/analysis_newref/GRN_scenicplus/ncall_2023oct_ccb/tmp/'
+tmpDir = 'multiome/analysis_newref/GRN_scenicplus/ncall_2023oct_ccb/tmp/'
+tmp_dir='multiome/analysis_newref/GRN_scenicplus/ncall_2023oct_ccb/tmp/'
 ##~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 ## 1. Cistarget databases
 ##~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
@@ -32,7 +32,7 @@ tmp_dir='/ceph/home/z/zhu/t1data/multiome/analysis_newref/GRN_scenicplus/ncall_2
 
 # Define rankings, score and motif annotation database
 db_fpath = work_dir + "ctx_db/"  # work_dir=projDir + 'output/'
-motif_annot_fpath = "/ceph/home/z/zhu/t1data/multiome/analysis_newref/GRN_scenicplus/data/motif_2023oct/"
+motif_annot_fpath = "multiome/analysis_newref/GRN_scenicplus/data/motif_2023oct/"
 
 rankings_db = db_fpath + 'ncall_newmotif' + '.regions_vs_motifs.rankings.feather'
 scores_db =  db_fpath + 'ncall_newmotif' + '.regions_vs_motifs.scores.feather'
@@ -42,7 +42,7 @@ motif_annotation = os.path.join(motif_annot_fpath, 'dr11_motif2tf_curated_filter
 ## 2. Motif enrichment analysis 
 ##~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 pd.set_option('display.max_columns', 0)
-motif2tf=pd.read_csv("/ceph/home/z/zhu/t1data/multiome/analysis_newref/GRN_scenicplus/data/motif/dr11_motif2tf_curated_filtered20230122.tbl", sep = "\t")
+motif2tf=pd.read_csv("multiome/analysis_newref/GRN_scenicplus/data/motif/dr11_motif2tf_curated_filtered20230122.tbl", sep = "\t")
 tmp = pd.DataFrame([['glam2out_motif1','glam2out_motif1','glam2out_motif1', 'GLAM2', '1.0', 'foxd3','0',	'None',	'None',	'1',	'None',	'None',	'gene is directly annotated']], columns=motif2tf.columns)
 motif2tf = motif2tf.append(tmp)
 tmp = pd.DataFrame([['ets2','ets2','ets2', 'custom', '1.0', 'ets1','0',	'None',	'None',	'1',	'None',	'None',	'gene is directly annotated']], columns=motif2tf.columns)
@@ -86,7 +86,7 @@ for key in region_sets.keys():
 #############################
 import pybiomart as pbm
 # Annotation of ['Chromosome', 'Start', 'Strand', 'Gene', 'Transcript_type']
-custom_annot = pd.read_csv("/ceph/home/z/zhu/t1data/multiome/analysis_newref/GRN_scenicplus/data/gene_annot/pybiomart_drerio_gene_ensembl105_geneNameMatched.csv")
+custom_annot = pd.read_csv("multiome/analysis_newref/GRN_scenicplus/data/gene_annot/pybiomart_drerio_gene_ensembl105_geneNameMatched.csv")
 custom_annot
 
 ################################################################

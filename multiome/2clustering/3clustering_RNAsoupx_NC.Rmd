@@ -36,7 +36,7 @@ seu <- seu[,seu[["RNA"]]@data["cyt1",] <= 0.5]
 seu <- seu[,seu[["RNA"]]@data["krt5",] <= 0.5]
 seu <- seu[,seu[["RNA"]]@data["cyt1l",] <= 0.5]
 
-saveRDS(colnames(seu) , "/t1-data/project/tsslab/zhu/multiome/analysis_newref/clustering/rds/subsetting_info/cellnames_multiome18k_NC.rds")
+saveRDS(colnames(seu) , "multiome/analysis_newref/clustering/rds/subsetting_info/cellnames_multiome18k_NC.rds")
 
 seu$major_clusters_NTnNC <- seu$seurat_clusters
 
@@ -100,12 +100,9 @@ seu <- RunTSNE(seu, dims = 1:15)
 
 ```
 
-
-
 ```{r}
 FeaturePlot(seu, "elavl3", reduction = "tsne",pt.size = 1)
 ```
-
 
 # Clustering results
 
@@ -119,6 +116,7 @@ p2 <- DimPlot(seu, reduction = "tsne", group.by = "genotype",cols = alpha(genoty
 p3 <- DimPlot(seu, reduction = "tsne", group.by = "stage", cols = alpha(stage_cols[c(2,5,8,10)], 0.4), pt.size = 0.5)
 p1 + p2 + p3
 ```
+
 # Find new markers
 
 ```{r findallmarkers}
@@ -152,8 +150,8 @@ FeaturePlot(seu, features = c(known_markers), ncol = 5, reduction  = 'tsne')
 # Save data
 
 ```{r}
-write.csv(nc.markers, "/t1-data/project/tsslab/zhu/multiome/analysis_newref/clustering/results/NC_markers_RNAsoupx.csv")
-saveRDS(seu, "/t1-data/project/tsslab/zhu/multiome/analysis_newref/clustering/rds/seuobj_rna/seu_RNAsoupx_NC.rds")
+write.csv(nc.markers, "multiome/analysis_newref/clustering/results/NC_markers_RNAsoupx.csv")
+saveRDS(seu, "multiome/analysis_newref/clustering/rds/seuobj_rna/seu_RNAsoupx_NC.rds")
 gc()
 ```
 

@@ -16,14 +16,14 @@
 #SBATCH --mem=64000
 
 eval "$(conda shell.bash hook)"
-conda activate /home/huzhiy/miniforge3/envs/AlphaPulldown
+conda activate AlphaPulldown
 
-cd /home/huzhiy/projects_ox/multiome/analysis_newref/alphafold/output/models20240202
+cd multiome/analysis_newref/alphafold/output/models20240202
 
 module load singularity/3.8.0 
 singularity exec \
     --no-home \
-    --bind /home/huzhiy/projects_ox/multiome/analysis_newref/alphafold/output/models20240202:/mnt \
+    --bind multiome/analysis_newref/alphafold/output/models20240202:/mnt \
     /home/huzhiy/software/alpha-analysis_jax_0.4.sif \
     run_get_good_pae.sh \
     --output_dir=/mnt \

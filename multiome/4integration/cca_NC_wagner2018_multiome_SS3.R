@@ -23,8 +23,8 @@ doublet_cols <- RColorBrewer::brewer.pal("Paired", n = 8)[c(6,8,2)]
 col.ls <- unique(c(ArchR::ArchRPalettes$stallion, ArchR::ArchRPalettes$bear)) # archR color palettes
 names(col.ls) <- NULL
 
-figdir="/ceph/project/tsslab/zhu/multiome/analysis_newref/integration/figures/NC_3datasets_cca/"
-outputdir="/ceph/project/tsslab/zhu/multiome/analysis_newref/integration/data/"
+figdir="multiome/analysis_newref/integration/figures/NC_3datasets_cca/"
+outputdir="multiome/analysis_newref/integration/data/"
 ndim <- 50
 
 ncmo <- readRDS("../../clustering/rds/seuobj_rna/seu_RNAsoupx_NC.rds") # multiome
@@ -53,7 +53,6 @@ ncss$genotype <- tolower(ncss$genotype)
 
 # merge two objects
 nc_all <- merge(ncmo, y = ncss)
-# nc_all@meta.data <- nc_all@meta.data[,1:20]
 ref$method <- "Wagner2018"
 nc_all <- merge(nc_all, y = ref)
 
@@ -61,8 +60,7 @@ nc_all <- merge(nc_all, y = ref)
 
 ## preprocessing Wagner 2018 data------
 # https://satijalab.org/loomr/loomr_tutorial
-refloom <- connect(filename = "/ceph/project/tsslab/zhu/multiome/analysis/ref_mapping/data/Wagner2018/public_data/WagnerScience2018.loom", mode = "r", skip.validate = TRUE)
-# ref <- Convert(refloom, to = "seurat")
+refloom <- connect(filename = "multiome/analysis/ref_mapping/data/Wagner2018/public_data/WagnerScience2018.loom", mode = "r", skip.validate = TRUE)
 
 full.matrix <- refloom[["matrix"]][,]
 full.matrix <- t(full.matrix)
@@ -78,7 +76,7 @@ colnames(full.matrix) <- cell.names
 gc()
 
 # metadata
-ref_metadata <- read.csv("/ceph/project/tsslab/zhu/multiome/R/ref_mapping/data/Wagner2018/public_data/WagnerScience2018_metadata.csv", row.names = 1)
+ref_metadata <- read.csv("multiome/R/ref_mapping/data/Wagner2018/public_data/WagnerScience2018_metadata.csv", row.names = 1)
 
 # create seurat object
 ref <- CreateSeuratObject(counts = full.matrix, meta.data = ref_metadata)
@@ -87,13 +85,6 @@ rm(ref_metadata)
 refloom$close_all()
 
 ref$ClusterName_short <- sapply(ref$ClusterName, function(x) unlist(strsplit(x, "hpf-"))[2])
-# SaveH5Seurat(ref, filename = "/t1-data/project/tsslab/zhu/multiome/R/ref_mapping/data/Wagner2018/public_data/WagnerScience2018.processed.h5Seurat")
-# Convert("/t1-data/project/tsslab/zhu/multiome/R/ref_mapping/data/Wagner2018/public_data/WagnerScience2018.processed.h5Seurat", dest = "h5ad")
-
-## gene overlap
-table(rownames(ref) %in% rownames(nc_all))
-# FALSE  TRUE 
-# 13970 16707 
 
 ## Integration
 
@@ -132,29 +123,4 @@ ggsave("../figures/NC_3datasets_cca/umap_by_methods.pdf", width = 9, height = 6)
 # plot by methods and splitted by methods
 DimPlot(seu.integrated, reduction = "umap", group.by = "method", pt.size = 0.5, cols = alpha(genotype_cols, 0.3), split.by = "method") #
 ggsave("../figures/NC_3datasets_cca/umap_by_methods_splitted_by_methods.pdf", width = 18, height = 5)
-
-# # plot the original projects
-# p1 <- DimPlot(seu.integrated, reduction = "umap", group.by = "proj")
-# ggsave(filename = paste0(figdir,"seu.integrated_umap_proj.pdf"), plot = p1,width = 10, height = 7)
-# 
-# # plot tissue name
-# p1 <- DimPlot(seu.integrated, reduction = "umap", 
-#               group.by = "TissueName", label = TRUE, repel = TRUE)
-# ggsave(filename = paste0(figdir,"seu.integrated_umap_TissueName.pdf"),plot = p1, width = 15, height = 12)
-# 
-# # plot Wagner et al's cluster name
-# p1 <- DimPlot(seu.integrated, reduction = "umap", 
-#         group.by = "ClusterName_short", label = TRUE, repel = TRUE) 
-# ggsave(filename = paste0(figdir,"seu.integrated_umap_ClusterName_short.pdf"), plot = p1,width = 15, height = 12)
-# 
-# # plot multiome seurat clusters
-# p1 <- DimPlot(seu.integrated, reduction = "umap", 
-#         group.by = "seurat_clusters", label = TRUE, repel = TRUE) 
-# ggsave(filename = paste0(figdir,"seu.integrated_umap_ClusterName_short.pdf"), plot = p1,width = 15, height = 12)
-# 
-# # write session info
-# writeLines(capture.output(sessionInfo()), "/t1-data/project/tsslab/zhu/multiome/analysis_newref/integration/sessioninfo/cca_wagner2018_multiome_sessionInfo.txt")
-
-
-
 

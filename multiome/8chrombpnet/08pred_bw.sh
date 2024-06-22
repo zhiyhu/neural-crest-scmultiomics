@@ -18,7 +18,7 @@ eval "$(conda shell.bash hook)"
 
 conda activate chrombpnet_test
 
-cluster=$1  #  mNC_nohox #  # mNC_nohox # Mutant_nohox_12_22ss
+cluster=$1  
 echo $cluster
 
 model=${wkdir}/data/07chrombpnet_model/${cluster}/models/chrombpnet_nobias.h5

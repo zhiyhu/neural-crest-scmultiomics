@@ -20,7 +20,7 @@ proj = "scvelo_wt_uncorrected"
 scv.settings.verbosity = 3  # show errors(0), warnings(1), info(2), hints(3)
 scv.settings.presenter_view = True  # set max width size for presenter view
 scv.set_figure_params('scvelo')  # for beautified visualization
-os.chdir('/ceph/project/tsslab/zhu/multiome/analysis_newref/velocity/')
+os.chdir('multiome/analysis_newref/velocity/')
 
 adata_seurat = scv.read("data/seurat/seu_RNAsoupx_NC.h5ad")
 adata = scv.read("data/rds/NC_RNAvelocyto_uncorrected.h5ad", cache=True)
@@ -38,9 +38,6 @@ scv.pl.proportions(adata, groupby = 'sample', save="../velocity/figures/scvelo_w
 ### Scanpy QC
 adata.var_names=adata.var["features"]
 sc.pl.highest_expr_genes(adata, n_top=20)
-
-# # check gene expression 
-# max(adata.to_df()['rplp1'])
 
 ###  Preprocessing the data
 scv.pp.filter_genes(adata, min_shared_counts=20)
@@ -135,7 +132,6 @@ scv.pl.paga(adata, basis='tsne', size=50, alpha=.1,threshold=0.03,
             min_edge_width=1, node_size_scale=0.5,
             save="../velocity/figures/scvelo_wt_uncorrected/scvelo_paga_threshold0.03.pdf")
 
-
 ###-------------------------------
 ### Save data
 
@@ -151,18 +147,10 @@ adata.var_names=adata.var["features"]
 scv.tl.rank_velocity_genes(adata, groupby='seurat_clusters', min_corr=.3)
 
 df = scv.DataFrame(adata.uns['rank_velocity_genes']['names'])
-df.head()
-
-df.columns
-# Index(['0', '1', '2', '3', '5', '6', '8', '10', '11', '12', '13', '14', '15',
-       # '18', '20', '21', '22'],
-
-df.loc[0:6,:].shape
 for x in ['0', '1', '2', '3', '5', '6', '8', '10', '11', '12', '13', '14', '15',
         '18', '20', '21', '22']:
   scv.pl.velocity(adata, df[x][0:6], basis = "tsne", color="seurat_clusters", ncols=2,
   save="../velocity/figures/scvelo_wt_uncorrected/NCwt_velocity_Cluster"+x+"_top6.pdf")
-
 
 ###--------------------------------
 ### dynamical modelling

@@ -8,16 +8,13 @@
 # reticulate::use_condaenv("scenicplus")
 
 # n_cells = 5000 # number of cells to keep
-work_dir = '/t1-data/project/tsslab/zhu/multiome/analysis_newref/GRN_scenicplus/ncall/'
-tmpDir = '/t1-data/project/tsslab/zhu/tmp'
+work_dir = 'multiome/analysis_newref/GRN_scenicplus/ncall/'
+tmpDir = 'tmp'
 
 import scanpy as sc
 import os
 import numpy as np
 import matplotlib.pyplot as plt
-# #set some figure parameters for nice display inside jupyternotebooks.
-# %matplotlib inline
-# sc.settings.set_figure_params(dpi=80, frameon=False, figsize=(5, 5), facecolor='white')
 
 #make a directory for to store the processed scRNA-seq data.
 if not os.path.exists(os.path.join(work_dir, 'scRNA')):
@@ -25,7 +22,7 @@ if not os.path.exists(os.path.join(work_dir, 'scRNA')):
 os.chdir(os.path.join(work_dir, 'scRNA'))
 
 ###### read data  ###### 
-adata = sc.read_h5ad('/t1-data/project/tsslab/zhu/multiome/analysis_newref/velocity/data/seurat/seu_RNAsoupx_NC.h5ad')
+adata = sc.read_h5ad('multiome/analysis_newref/velocity/data/seurat/seu_RNAsoupx_NC.h5ad')
 # fix raw issue
 adata_tmp = adata.raw.to_adata()
 adata_tmp.var_names = adata.var['features']

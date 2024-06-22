@@ -9,7 +9,7 @@ library(parallel)
 library(cowplot)
 
 # read in integrated data
-seu.integrated <- readRDS("/ceph/project/tsslab/zhu/multiome/analysis_newref/integration/data/integrated/multiomeNC_wagner2018_cca.rds")
+seu.integrated <- readRDS("multiome/analysis_newref/integration/data/integrated/multiomeNC_wagner2018_cca.rds")
 seu.integrated$initial_cluster <- NA
 seu.integrated$initial_cluster <- seu.integrated$ClusterName_short
 seu.integrated$initial_cluster[seu.integrated$proj =="foxd3multiome"] <- seu.integrated$cell_type[seu.integrated$proj =="foxd3multiome"]
@@ -38,7 +38,7 @@ ider <- getIDEr(seu.integrated,
                 downsampling.size = 35, downsampling.include = FALSE,
                 use.parallel = TRUE, verbose = TRUE, n.cores = 6)
 saveRDS(object = ider, 
-        file = "/ceph/project/tsslab/zhu/multiome/analysis_newref/integration/data/integrated/ider.rds")
+        file = "multiome/analysis_newref/integration/data/integrated/ider.rds")
 
 ## plot the heatmap
 library(viridis)
@@ -53,5 +53,5 @@ pheatmap::pheatmap(
   cluster_cols = TRUE,
   width = 14,
   height = 24,
-  filename =  "/ceph/project/tsslab/zhu/multiome/analysis_newref/integration/figures/NC_wagner_cca/cider_heatmap.pdf"
+  filename =  "multiome/analysis_newref/integration/figures/NC_wagner_cca/cider_heatmap.pdf"
 )
