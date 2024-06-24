@@ -21,9 +21,9 @@ The analysis scripts below are located in the `multiome` directory.
 
 * QC and filtering
     * `multiome/1preprocessing/seurat_initialqc_bysample.R`
-    * RNA Doublet filtering: ``
+    <!-- * RNA Doublet filtering: ``
     * Intersect RNA + ATAC good-quality cells: ``
-    * Merge objects: ``
+    * Merge objects: `` -->
 
 ### 2 Clustering and cell type annotation
 
