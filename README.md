@@ -74,15 +74,23 @@ The analysis scripts below are located in the `multiome` directory.
 
 #### 7.1 SCENIC+ analysis (`scenicplus`)
 
-* Reconstruct enhancer-drivern gene regulatory network: `multiome/7GRN/scenicplus`
+* Reconstruct enhancer-drivern gene regulatory network: scripts in directory `multiome/7GRN/scenicplus`
 
 #### 7.2 Regulon functional analysis (`regulon_function`)
 
+* Centrality analysis: `multiome/7GRN/regulon_function/calculate_centrality_TFonly.py`
+* Plot FishEnrichR results for each regulon cluster: `multiome/7GRN/regulon_function/plot_fishEnrichr.R`
 
+#### 7.3 GRN dynamics analysis - SyncReg (`GRN_dynamics_SyncReg`)
 
-#### 7.3 GRN dynamics analysis (`GRN_dynamics`)
-
-
+* Extract AUC data: `multiome/7GRN/GRN_dynamics_SyncReg/0prepare_auc_mtx.r`
+* Extract latent time: `multiome/7GRN/GRN_dynamics_SyncReg/1extract_latent_time.py`
+* Preprocess AUC data: `multiome/7GRN/GRN_dynamics_SyncReg/1preprocess_auc_data.R`
+* Process regulon data (region-based and gene-based): `multiome/7GRN/GRN_dynamics_SyncReg/2process_regulon_data_rb.R` and `multiome/7GRN/GRN_dynamics_SyncReg/2process_regulon_data_gb.R`
+* Compute similarity: `multiome/7GRN/GRN_dynamics_SyncReg/3image_similarity_rb.py` and `multiome/7GRN/GRN_dynamics_SyncReg/3image_similarity_gb.py`
+* Perform clustering: `multiome/7GRN/GRN_dynamics_SyncReg/4cluster_image_similarity.R`
+* Motif clustering analysis: `multiome/7GRN/GRN_dynamics_SyncReg/tomtom.sh` and `multiome/7GRN/GRN_dynamics_SyncReg/5motif_clustering.R`
+* Dendrogram comparison: `multiome/7GRN/GRN_dynamics_SyncReg/6tanglegram_comparison.R`
 
 ### 8 ChromBPNet analysis
 
