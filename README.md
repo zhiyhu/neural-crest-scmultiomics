@@ -3,7 +3,7 @@
 This repository contains the code for the following analysis, catelogued by the sub-projects:
 * [Multiome (RNA+ATAC)](https://github.com/zhiyhu/neural-crest-scmultiomics?tab=readme-ov-file#10x-multiome-data-analysis)
 * [Smart-seq3](https://github.com/zhiyhu/neural-crest-scmultiomics?tab=readme-ov-file#smart-seq3-data-analysis)
-* [Merscope](https://github.com/zhiyhu/neural-crest-scmultiomics?tab=readme-ov-file#merscope-data-analysis)
+* [Merscope](https://github.com/zhiyhu/neural-crest-scmultiomics?tab=readme-ov-file#merscope)
 * [Perturb-seq](https://github.com/zhiyhu/neural-crest-scmultiomics?tab=readme-ov-file#perturb-seq-data-analysis)
 * [ChIP-seq](https://github.com/zhiyhu/neural-crest-scmultiomics?tab=readme-ov-file#chip-seq-data-analysis)
 
@@ -19,13 +19,14 @@ The analysis scripts below are located in the `multiome` directory.
 
 Directory: `multiome/1preprocessing/`
 
-* Remove ambient RNA by SoupX: `soupX_all_samples.R`
+* Remove ambient RNA by [SoupX](https://github.com/constantAmateur/SoupX): `0soupX_all_samples.R`
 
 * QC and filtering
-    * `seurat_initialqc_bysample.R`
-    <!-- * RNA Doublet filtering: ``
-    * Intersect RNA + ATAC good-quality cells: ``
-    * Merge objects: `` -->
+    * `1seurat_initialqc_bysample.R`
+    * RNA doublet filtering by [DoubletFinder](https://github.com/chris-mcginnis-ucsf/DoubletFinder): `2doubletfinder_RNA/*.Rmd`
+    * ATAC data QC and doublet filtering: see [ArchR analysis](https://github.com/zhiyhu/neural-crest-scmultiomics?tab=readme-ov-file#5-archr-analysis)
+    * Intersect RNA + ATAC good-quality cells: `4intersect_rna_atac_singlet.R`
+    * Merge objects: `5merge_seuobj_rna.R`
 
 ### 2 Clustering and cell type annotation 
 
@@ -47,15 +48,15 @@ Directory: `multiome/2clustering/`
 
 Directory: `multiome/4integration/`
 
-* Use Wagner et al (2018) data to annotate multiome all cells: `classification_wagner_multiomeall.R`
+* Use [Wagner et al (2018)](https://www.science.org/doi/10.1126/science.aar4362) data to annotate multiome all cells: `classification_wagner_multiomeall.R`
 * Integrate multiome, Smart-seq3 and Wagner et al (2018) data: `cca_NC_wagner2018_multiome_SS3.R`
-* Compute inter-group similarity: `NC_Wagner2018_CIDER.R`
+* Compute inter-group similarity by [CIDER](https://github.com/zhiyhu/CIDER): `NC_Wagner2018_CIDER.R`
 
 ### 5 ArchR analysis
 
 Directory: `multiome/5archr/`
 
-* Create Arrow files: `archr_createArrow.R`
+* Create Arrow files by [ArchR](https://www.archrproject.com): `archr_createArrow.R`
 * Filter doublet: `archr_filterdoublet.R`
 * Create ArchR project: `archr_createArchRproj.R`
 * Peak calling: `archr_callpeaks.R`
@@ -75,14 +76,14 @@ Directory: `multiome/5archr/`
 * Link peaks: `03_1run_linkpeaks.sh`
 * Preprocess RNA data: `04wtnohox_rna_h5ad.R`
 * Prepare ATAC data: `05wtnohox_atac.R`
-* Run MultiVelo: `wtnohox_multivelo_uncorrected.py` and `wtnohox_seurat_wnn.R`
+* Run [MultiVelo](https://multivelo.readthedocs.io): `wtnohox_multivelo_uncorrected.py` and `wtnohox_seurat_wnn.R`
 
 
 ### 7 Gene regulatory network (GRN) analysis  
 
 #### 7.1 SCENIC+ analysis
 
-* Reconstruct enhancer-drivern gene regulatory network: scripts in directory `multiome/7GRN/scenicplus`
+* Reconstruct enhancer-drivern gene regulatory network by [SCENIC+](https://scenicplus.readthedocs.io): scripts in directory `multiome/7GRN/scenicplus`
 
 #### 7.2 Regulon functional analysis
 
@@ -91,7 +92,7 @@ Directory: `multiome/7GRN/regulon_function`
 * Regulon clustering analysis: `cluster_regulons_regionBased.py`
 * Centrality analysis: `calculate_centrality_TFonly.py`
 * Visualisation of clustering and centrality analysis results: `regulon_clustering_centrality.Rmd`
-* Visualisation of FishEnrichR results: `plot_fishEnrichr.R`
+* Visualisation of [FishEnrichR](https://maayanlab.cloud/FishEnrichr/) results: `plot_fishEnrichr.R`
 
 #### 7.3 GRN dynamics analysis - SyncReg 
 
@@ -112,7 +113,7 @@ Directory: `multiome/7GRN/GRN_dynamics_SyncReg`
 * Preprocess bam: `04prep_bam.sh`
 * Preprocess peaks: `04prep_peaks.sh`
 * Prepare non peaks and other input: `05chombpnet_prep.sh`
-* Run ChromBPNet bias model: `06bias_model.sh`
+* Run [ChromBPNet](https://github.com/kundajelab/chrombpnet) bias model: `06bias_model.sh`
 * Run ChromBPNet bias-facterised model: `07bias_factrised.sh`
 * Prepare bigwig: `08pred_bw.sh`
 * Compute contribution bigwig: `09contribs_bw.sh`
@@ -126,7 +127,7 @@ Directory: `multiome/7GRN/GRN_dynamics_SyncReg`
 ### 9 AlphaPullDown analysis
 
 * Create individual features: `create_individual_features_SLURM20240202.sh`
-* Run multimer: `run_multimer_jobs_SLURM20240202.sh`
+* Run multimer via [AlphaPullDown](https://github.com/KosinskiLab/AlphaPulldown): `run_multimer_jobs_SLURM20240202.sh`
 * Create notebook: `create_notebook20240202.sh`
 * Visualise results: `viz_alphapulldown_rls.Rmd`
 
@@ -152,14 +153,14 @@ Directory: `multiome/7GRN/GRN_dynamics_SyncReg`
 
 ### 1 Gene panel design
 
-* Prepare datasets, run SPARPROS, evaludate the probe set: `merscope/1panel_design`
+* Prepare datasets, run [SPAPROS](https://spapros.readthedocs.io), evaluate the probe set: `merscope/1panel_design`
 
 ### 2 Merscope data analysis
 
 Directory: `merscope/2analysis`
 
 * Merge data, clustering: `1merge_run1_run3.ipynb`
-* Merscope/snRNA-seq mapping by Tangram: `2run1_tangram_merscopeNC_multiomeNC.ipynb` and `2run3_allCells_mapping.ipynb`
+* Merscope/snRNA-seq mapping by [Tangram](https://tangram-sc.readthedocs.io): `2run1_tangram_merscopeNC_multiomeNC.ipynb` and `2run3_allCells_mapping.ipynb`
 * Spatial visualisation: `3run1_viz_anno20240425.ipynb` and `3run3_viz_anno.ipynb`
 
 ## Perturb-seq data analysis
@@ -184,15 +185,15 @@ Directory: `perturb-seq/2clustering/`
 
 Directory: `perturb-seq/3perturbation_effects/`
 
-* MELD computation and PHATE visualisation: `1meld_calculateLikelihood.ipynb`
-* Impute latent time by RPCA and scVI: `2impute_by_rpca_results.Rmd` and `2impute_by_scvi_results.Rmd`
+* [MELD](https://github.com/KrishnaswamyLab/MELD) computation and PHATE visualisation: `1meld_calculateLikelihood.ipynb`
+* Impute latent time by [RPCA](https://satijalab.org/seurat/articles/integration_rpca.html) and [scVI](https://docs.scvi-tools.org/en/stable/tutorials/index.html): `2impute_by_rpca_results.Rmd` and `2impute_by_scvi_results.Rmd`
 * Quantify perturbation effects: `3extensive_analysis_meld.Rmd`
 
 ### 4 Figure factory 
 
 Directory: `perturb-seq/4fig_factory/`
 
-* Effect heatmap, coverage violin plot, PHATE density plot `1perturbseq_vis.Rmd`
+* Effect heatmap, coverage violin plot, [PHATE](https://phate.readthedocs.io/en/stable/tutorial.html) density plot `1perturbseq_vis.Rmd`
 * Trend plots: `2vis_likelihood.Rmd`
 
 ## ChIP-seq data analysis

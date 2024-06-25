@@ -1,0 +1,152 @@
+---
+title: "Run DoubletFinder on RNA data (filtered by soupx)"
+author: "Zhiyuan Hu"
+date: '2022-12-22 (last modified: `r Sys.Date()`)'
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+library(dplyr)
+library(Seurat)
+library(Signac)
+library(patchwork)
+library(RColorBrewer)
+library(scales)
+library(DoubletFinder)
+```
+
+# Read data
+
+```{r}
+projname <- "6-10ss"
+s4 <- readRDS("/t1-data/project/tsslab/zhu/multiome/analysis_newref/preprocessing/rds/intermediate_seuobj/post_initialqc_scmo_s4_RNA.rds")
+head(colnames(s4))
+s5 <- readRDS("/t1-data/project/tsslab/zhu/multiome/analysis_newref/preprocessing/rds/intermediate_seuobj/post_initialqc_scmo_s5_RNA.rds")
+head(colnames(s5))
+seu <- merge(s4, y = s5, project = projname)
+DefaultAssay(seu) <- "RNA"
+rm(s4, s5)
+```
+```{r}
+table(seu$sample)
+```
+
+# Doublet filter
+
+Refer to this https://www.epfl.ch/research/facilities/gene-expression-core-facility/wp-content/uploads/2021/04/Multiome-10XG-samples-preparation-guidelines-by-GECF-vA.01.pdf
+
+```{r}
+doublet_rates <- c(0.087, 0.1386, 0.1155, 0.077)
+names(doublet_rates) <- c("18-22ss","12-16ss", "6-10ss","epiboly-4ss")
+
+doublet_rate <- doublet_rates[projname]
+```
+
+# Run doubletfinder
+
+```{r}
+## Pre-process Seurat object (standard) --------------------------------------------------------------------------------------
+seu <- NormalizeData(seu)
+seu <- FindVariableFeatures(seu, selection.method = "vst", nfeatures = 2000)
+seu <- ScaleData(seu)
+seu <- RunPCA(seu)
+seu <- RunUMAP(seu, dims = 1:30)
+seu <- FindNeighbors(object = seu, reduction = "pca", dims = 1:30, verbose = TRUE)
+seu <- FindClusters(seu, dims = 1:30, resolution = 0.6)
+
+## pK Identification (no ground-truth) ---------------------------------------------------------------------------------------
+set.seed(8)
+sweep.res.list <- paramSweep_v3(seu, PCs = 1:30, sct = FALSE)
+sweep.stats <- summarizeSweep(sweep.res.list, GT = FALSE)
+bcmvn <- find.pK(sweep.stats)
+bcmvn
+
+# Optimal pK is the max of the bomodality coefficent (BCmvn) distribution
+bcmvn.max <- bcmvn[which.max(bcmvn$BCmetric),]
+optimal.pk <- bcmvn.max$pK
+optimal.pk <- as.numeric(levels(optimal.pk))[optimal.pk]
+optimal.pk
+
+if(optimal.pk == 0.005){
+  bcmvn <- bcmvn[bcmvn$pK != 0.005,]
+  
+  bcmvn.max <- bcmvn[which.max(bcmvn$BCmetric),]
+  optimal.pk <- bcmvn.max$pK
+  optimal.pk <- as.numeric(levels(optimal.pk))[optimal.pk]
+  optimal.pk
+}
+
+## Homotypic Doublet Proportion Estimate -------------------------------------------------------------------------------------
+annotations <- seu@meta.data$seurat_clusters
+homotypic.prop <- modelHomotypic(annotations)           ## ex: annotations <- seu@meta.data$ClusteringResults
+nExp_poi <- round(doublet_rate*nrow(seu@meta.data))  ## Assuming 7.5% doublet formation rate - tailor for your dataset
+nExp_poi.adj <- round(nExp_poi*(1-homotypic.prop))
+
+## Run DoubletFinder with varying classification stringencies ----------------------------------------------------------------
+seu <- doubletFinder_v3(seu, PCs = 1:30, pN = 0.25, pK = 0.005, nExp = nExp_poi, reuse.pANN = FALSE, sct = FALSE)
+seu <- doubletFinder_v3(seu, PCs = 1:30, pN = 0.25, pK = 0.005, nExp = nExp_poi.adj, reuse.pANN = FALSE, sct = FALSE)
+
+seu <- doubletFinder_v3(seu, PCs = 1:30, pN = 0.25, pK = 0.01, nExp = nExp_poi, reuse.pANN = FALSE, sct = FALSE)
+seu <- doubletFinder_v3(seu, PCs = 1:30, pN = 0.25, pK = 0.01, nExp = nExp_poi.adj, reuse.pANN = FALSE, sct = FALSE)
+
+
+seu <- doubletFinder_v3(seu, PCs = 1:30, pN = 0.25, pK = optimal.pk, nExp = nExp_poi, reuse.pANN = FALSE, sct = FALSE)
+seu <- doubletFinder_v3(seu, PCs = 1:30, pN = 0.25, pK = optimal.pk, nExp = nExp_poi.adj, reuse.pANN = FALSE, sct = FALSE)
+```
+
+
+```{r}
+## Assign classification
+seu$DoubletFinder <- "Singlet"
+idx <- grep("DF.classifications_0.25_0.005", colnames(seu@meta.data))
+seu$DoubletFinder[seu@meta.data[,idx[1]] == "Doublet" & seu@meta.data[,idx[2]] == "Doublet"] <- "Doublet (high likelyhood)"
+seu$DoubletFinder[(seu@meta.data[,idx[1]] != "Doublet" & seu@meta.data[,idx[2]]== "Doublet" )|
+                    (seu@meta.data[,idx[2]] != "Doublet" & seu@meta.data[,idx[1]]== "Doublet" )] <- "Doublet (low likelyhood)"
+
+seu$DoubletFinder2 <- "Singlet"
+idx <- grep("DF.classifications_0.25_0.01", colnames(seu@meta.data))
+seu$DoubletFinder2[seu@meta.data[,idx[1]] == "Doublet" & seu@meta.data[,idx[2]] == "Doublet"] <- "Doublet (high likelyhood)"
+seu$DoubletFinder2[(seu@meta.data[,idx[1]] != "Doublet" & seu@meta.data[,idx[2]]== "Doublet" )|
+                    (seu@meta.data[,idx[2]] != "Doublet" & seu@meta.data[,idx[1]]== "Doublet" )] <- "Doublet (low likelyhood)"
+
+idx <- grep(paste0("DF.classifications_0.25_", as.character(optimal.pk)), colnames(seu@meta.data))
+seu$DoubletFinder_pK <- "Singlet"
+seu$DoubletFinder_pK[seu@meta.data[,idx[1]] == "Doublet"& seu@meta.data[,idx[2]] == "Doublet"] <- "Doublet (high likelyhood)"
+seu$DoubletFinder_pK[(seu@meta.data[,idx[1]] != "Doublet" & seu@meta.data[,idx[2]]== "Doublet" )|
+                    (seu@meta.data[,idx[2]] != "Doublet" & seu@meta.data[,idx[1]]== "Doublet" )] <- "Doublet (low likelyhood)"
+
+```
+
+
+
+```{r, fig.width=18, fig.height=4}
+p1 <- DimPlot(seu, group.by = "DoubletFinder")
+p2 <- DimPlot(seu, group.by = "DoubletFinder2")
+p3 <- DimPlot(seu, group.by = "DoubletFinder_pK")
+p1 + p2 + p3
+```
+
+```{r, fig.width=18, fig.height=4}
+p1 <- VlnPlot(seu, features = c("nFeature_RNA"), group.by = "DoubletFinder" , pt.size =  0)
+p2 <- VlnPlot(seu, features = c("nFeature_RNA"), group.by = "DoubletFinder2" , pt.size =  0)
+p3 <- VlnPlot(seu, features = c("nFeature_RNA"), group.by = "DoubletFinder_pK" , pt.size =  0)
+cowplot::plot_grid(p1, p2,p3,ncol = 3)
+```
+
+```{r}
+table(seu$DoubletFinder, seu$sample)
+```
+
+
+
+```{r}
+saveRDS(seu, file = "/t1-data/project/tsslab/zhu/multiome/analysis_newref/preprocessing/rds/doubletfinder/seu_rna_soupx_6_10ss.rds")
+saveRDS(seu@meta.data, file = "/t1-data/project/tsslab/zhu/multiome/analysis_newref/preprocessing/rds/doubletfinder/metadata_soupx_6_10ss.rds")
+```
+
+# Technical
+
+```{r}
+sessionInfo()
+```

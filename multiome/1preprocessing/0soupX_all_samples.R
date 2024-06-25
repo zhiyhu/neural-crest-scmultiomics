@@ -9,7 +9,6 @@
 library(SoupX)
 library(DropletUtils)
 
-setwd("/home/z/zhu/t1data/multiome/analysis_newref/")
 
 ##----------##
 ## S1       ##
