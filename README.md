@@ -22,7 +22,7 @@ Directory: `multiome/1preprocessing/`
 * Remove ambient RNA by [SoupX](https://github.com/constantAmateur/SoupX): `0soupX_all_samples.R`
 
 * QC and filtering
-    * `1seurat_initialqc_bysample.R`
+    * RNA data QC: `1seurat_initialqc_bysample.R`
     * RNA doublet filtering by [DoubletFinder](https://github.com/chris-mcginnis-ucsf/DoubletFinder): `2doubletfinder_RNA/*.Rmd`
     * ATAC data QC and doublet filtering: see [ArchR analysis](https://github.com/zhiyhu/neural-crest-scmultiomics?tab=readme-ov-file#5-archr-analysis)
     * Intersect RNA + ATAC good-quality cells: `4intersect_rna_atac_singlet.R`
