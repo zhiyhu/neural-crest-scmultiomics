@@ -11,29 +11,33 @@ This repository contains the code for the following analysis, catelogued by the 
 
 Zhiyuan Hu, Sarah Mayes, Weixu Wang, José Mariá Santos Perreira, Fabian Theis, Tatjana Sauka-Spengler. A Complete Gene Regulatory Network of the Cranial Neural Crest in Zebrafish (2024).
 
-## 10x multiome data analysis
+## 10x Multiome data analysis
 
 The analysis scripts below are located in the `multiome` directory.
 
 ### 1 Preprocessing and quality control
 
-* Remove ambient RNA by SoupX: `multiome/1preprocessing/soupX_all_samples.R`
+Directory: `multiome/1preprocessing/`
+
+* Remove ambient RNA by SoupX: `soupX_all_samples.R`
 
 * QC and filtering
-    * `multiome/1preprocessing/seurat_initialqc_bysample.R`
+    * `seurat_initialqc_bysample.R`
     <!-- * RNA Doublet filtering: ``
     * Intersect RNA + ATAC good-quality cells: ``
     * Merge objects: `` -->
 
-### 2 Clustering and cell type annotation
+### 2 Clustering and cell type annotation 
+
+Directory: `multiome/2clustering/`
 
 * Clustering and annotating all cells
-    * Clustering analysis: `multiome/2clustering/1clustering_RNAsoupx_allcells.Rmd`
-    * Annotation analysis: `multiome/2clustering/2annotate_RNAsoupx_allcells.Rmd`
+    * Clustering analysis: `1clustering_RNAsoupx_allcells.Rmd`
+    * Annotation analysis: `2annotate_RNAsoupx_allcells.Rmd`
 
 * Clustering and annotating NC cells 
-    * Clustering analysis: `multiome/2clustering/3clustering_RNAsoupx_NC.Rmd` 
-    * Annotation analysis: `multiome/2clustering/4annotate_RNAsoupx_NC.Rmd`
+    * Clustering analysis: `3clustering_RNAsoupx_NC.Rmd` 
+    * Annotation analysis: `4annotate_RNAsoupx_NC.Rmd`
 
 ### 3 Genotyping
 
@@ -41,47 +45,57 @@ The analysis scripts below are located in the `multiome` directory.
 
 ### 4 Integration
 
-* Use Wagner et al (2018) data to annotate multiome all cells: `multiome/4integration/classification_wagner_multiomeall.R`
-* Integrate multiome, Smart-seq3 and Wagner et al (2018) data: `multiome/4integration/cca_NC_wagner2018_multiome_SS3.R`
-* Compute inter-group similarity: `multiome/4integration/NC_Wagner2018_CIDER.R`
+Directory: `multiome/4integration/`
+
+* Use Wagner et al (2018) data to annotate multiome all cells: `classification_wagner_multiomeall.R`
+* Integrate multiome, Smart-seq3 and Wagner et al (2018) data: `cca_NC_wagner2018_multiome_SS3.R`
+* Compute inter-group similarity: `NC_Wagner2018_CIDER.R`
 
 ### 5 ArchR analysis
 
-* Create Arrow files: `multiome/5archr/archr_createArrow.R`
-* Filter doublet: `multiome/5archr/archr_filterdoublet.R`
-* Create ArchR project: `multiome/5archr/archr_createArchRproj.R`
-* Peak calling: `multiome/5archr/archr_callpeaks.R`
-* Motif enrichment analysis: `multiome/5archr/anchr_menr.R`
+Directory: `multiome/5archr/`
+
+* Create Arrow files: `archr_createArrow.R`
+* Filter doublet: `archr_filterdoublet.R`
+* Create ArchR project: `archr_createArchRproj.R`
+* Peak calling: `archr_callpeaks.R`
+* Motif enrichment analysis: `anchr_menr.R`
 
 ### 6 Velocity analysis
 
-#### 6.1 RNA velocity 
+#### 6.1 RNA velocity (`multiome/6velocity/RNA_velocity/`)
 
-* Wild-type NC RNA velocity analysis: `multiome/6velocity/RNA_velocity/scvelo_wt_uncorrected.py`
-* foxd3-mutant NC RNA velocity analysis: `multiome/6velocity/RNA_velocity/scvelo_mut_uncorrected.py`
+* Wild-type NC RNA velocity analysis: `scvelo_wt_uncorrected.py`
+* foxd3-mutant NC RNA velocity analysis: `scvelo_mut_uncorrected.py`
 
-#### 6.2 MultiVelo 
+#### 6.2 MultiVelo (`multiome/6velocity/multivelo/`)
 
-* Annotate peaks: `multiome/6velocity/multivelo/01homer_annotpeaks.sh` and `multiome/6velocity/multivelo/01annot_peaks.R`
-* Preprocess ATAC data: `multiome/6velocity/multivelo/02_1signac_ataccounts.R` and `multiome/6velocity/multivelo/02_2signac_regionstat.R`
-* Link peaks: `multiome/6velocity/multivelo/03_1run_linkpeaks.sh`
-* Preprocess RNA data: `multiome/6velocity/multivelo/04wtnohox_rna_h5ad.R`
-* Prepare ATAC data: `multiome/6velocity/multivelo/05wtnohox_atac.R`
-* Run MultiVelo: `multiome/6velocity/multivelo/wtnohox_multivelo_uncorrected.py` and `multiome/6velocity/multivelo/wtnohox_seurat_wnn.R`
+* Annotate peaks: `01homer_annotpeaks.sh` and `01annot_peaks.R`
+* Preprocess ATAC data: `02_1signac_ataccounts.R` and `02_2signac_regionstat.R`
+* Link peaks: `03_1run_linkpeaks.sh`
+* Preprocess RNA data: `04wtnohox_rna_h5ad.R`
+* Prepare ATAC data: `05wtnohox_atac.R`
+* Run MultiVelo: `wtnohox_multivelo_uncorrected.py` and `wtnohox_seurat_wnn.R`
 
 
 ### 7 Gene regulatory network (GRN) analysis  
 
-#### 7.1 SCENIC+ analysis (`scenicplus`)
+#### 7.1 SCENIC+ analysis
 
 * Reconstruct enhancer-drivern gene regulatory network: scripts in directory `multiome/7GRN/scenicplus`
 
-#### 7.2 Regulon functional analysis (`multiome/7GRN/regulon_function`)
+#### 7.2 Regulon functional analysis
 
+Directory: `multiome/7GRN/regulon_function`
+
+* Regulon clustering analysis: `cluster_regulons_regionBased.py`
 * Centrality analysis: `calculate_centrality_TFonly.py`
-* Plot FishEnrichR results for each regulon cluster: `plot_fishEnrichr.R`
+* Visualisation of clustering and centrality analysis results: `regulon_clustering_centrality.Rmd`
+* Visualisation of FishEnrichR results: `plot_fishEnrichr.R`
 
-#### 7.3 GRN dynamics analysis - SyncReg (`multiome/7GRN/GRN_dynamics_SyncReg`)
+#### 7.3 GRN dynamics analysis - SyncReg 
+
+Directory: `multiome/7GRN/GRN_dynamics_SyncReg`
 
 * Extract AUC data: `0prepare_auc_mtx.r`
 * Extract latent time: `1extract_latent_time.py`
@@ -142,34 +156,44 @@ The analysis scripts below are located in the `multiome` directory.
 
 ### 2 Merscope data analysis
 
-* Merge data, clustering: `merscope/2analysis/1merge_run1_run3.ipynb`
-* Merscope/snRNA-seq mapping by Tangram: `merscope/2analysis/2run1_tangram_merscopeNC_multiomeNC.ipynb` and `merscope/2analysis/2run3_allCells_mapping.ipynb`
-* Spatial visualisation: `merscope/2analysis/3run1_viz_anno20240425.ipynb` and `merscope/2analysis/3run3_viz_anno.ipynb`
+Directory: `merscope/2analysis`
+
+* Merge data, clustering: `1merge_run1_run3.ipynb`
+* Merscope/snRNA-seq mapping by Tangram: `2run1_tangram_merscopeNC_multiomeNC.ipynb` and `2run3_allCells_mapping.ipynb`
+* Spatial visualisation: `3run1_viz_anno20240425.ipynb` and `3run3_viz_anno.ipynb`
 
 ## Perturb-seq data analysis
 
 ### 1 Preprocessing
 
-* Remove ambient RNA: `perturb-seq/1preprocessing/soupX_all_samples.R`
-* Merge data: `perturb-seq/1preprocessing/merge_all_samples.Rmd`
-* Doublet identification: `perturb-seq/1preprocessing/doubletfinder_RNAonly.Rmd`
+Directory: `perturb-seq/1preprocessing/`
+
+* Remove ambient RNA: `soupX_all_samples.R`
+* Merge data: `merge_all_samples.Rmd`
+* Doublet identification: `doubletfinder_RNAonly.Rmd`
 
 ### 2 Clustering and cell type annotation
 
-* Merge SoupX-corrected matrix, cluster all cells and integrate sgRNA information: `perturb-seq/2clustering/1_qc_clustering_allcells_p1top11.Rmd`
-* Cluster singlet cells and integrate with multiome data: `perturb-seq/2clustering/2_clustering_allcells_singlet.Rmd`
-* Cluster NC cells and integrate with multiome-RNA NC data: `perturb-seq/2clustering/3_clustering_NC_p1top11.Rmd`
+Directory: `perturb-seq/2clustering/`
+
+* Merge SoupX-corrected matrix, cluster all cells and integrate sgRNA information: `1_qc_clustering_allcells_p1top11.Rmd`
+* Cluster singlet cells and integrate with multiome data: `2_clustering_allcells_singlet.Rmd`
+* Cluster NC cells and integrate with multiome-RNA NC data: `3_clustering_NC_p1top11.Rmd`
 
 ### 3 Quantification of in vivo perturbation effects 
 
-* MELD computation and PHATE visualisation: `perturb-seq/3perturbation_effects/1meld_calculateLikelihood.ipynb`
-* Impute latent time by RPCA and scVI: `perturb-seq/3perturbation_effects/2impute_by_rpca_results.Rmd` and `perturb-seq/3perturbation_effects/2impute_by_scvi_results.Rmd`
-* Quantify perturbation effects: `perturb-seq/3perturbation_effects/3extensive_analysis_meld.Rmd`
+Directory: `perturb-seq/3perturbation_effects/`
 
-### 4 Figure factory
+* MELD computation and PHATE visualisation: `1meld_calculateLikelihood.ipynb`
+* Impute latent time by RPCA and scVI: `2impute_by_rpca_results.Rmd` and `2impute_by_scvi_results.Rmd`
+* Quantify perturbation effects: `3extensive_analysis_meld.Rmd`
 
-* Effect heatmap, coverage violin plot, PHATE density plot `perturb-seq/4fig_factory/1perturbseq_vis.Rmd`
-* Trend plots: `perturb-seq/4fig_factory/2vis_likelihood.Rmd`
+### 4 Figure factory 
+
+Directory: `perturb-seq/4fig_factory/`
+
+* Effect heatmap, coverage violin plot, PHATE density plot `1perturbseq_vis.Rmd`
+* Trend plots: `2vis_likelihood.Rmd`
 
 ## ChIP-seq data analysis
 

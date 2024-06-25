@@ -1,0 +1,220 @@
+---
+title: "regulon clustering and centrality analysis"
+output: html_document
+date: "2024-01-15"
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+library(ggplot2)
+library(dplyr)
+library(ggrepel)
+library(cowplot)
+```
+
+## Read data
+
+```{r}
+df_centrality <- read.csv("GRN_scenicplus/ncall_2023oct_ccb/figures/centrality_analysis_allTFgene/Out-degree Centrality.csv")
+head(df_centrality)
+```
+
+# Centrality barplots
+
+```{r}
+df_centrality_tf <- read.csv("GRN_scenicplus/ncall_2023oct_ccb/figures/centrality_analysis_TFonly/Out-degree Centrality.csv")
+head(df_centrality_tf)
+```
+
+```{r}
+ # Create the bar plot
+ggplot(df_centrality[1:50,], aes(x = reorder(Node, Centrality), y = Centrality)) +
+  geom_bar(stat = "identity", fill = "skyblue") +
+  labs( x = "Nodes", y = "Centrality") +
+  theme(axis.text.x = element_text(angle = 90, hjust = 1)) + theme_classic() +
+  coord_flip()  # Optional: Use if you want a horizontal bar plot
+ggsave("fig_factory/figures/6regulon/regulon_Outcentrality_top50_allGenes.pdf", width = 5, height = 7)
+```
+
+```{r}
+ # Create the bar plot
+ggplot(df_centrality_tf[1:50,], aes(x = reorder(Node, Centrality), y = Centrality)) +
+  geom_bar(stat = "identity", fill = "skyblue") +
+  labs( x = "Nodes", y = "Centrality") +
+  theme(axis.text.x = element_text(angle = 90, hjust = 1)) + theme_classic() +
+  coord_flip()  # Optional: Use if you want a horizontal bar plot
+ggsave("fig_factory/figures/6regulon/regulon_Outcentrality_top50_TFonly.pdf", width = 5, height = 7)
+```
+
+# barplot by clusters - gene based
+
+```{r}
+library(dplyr)
+library(ggplot2)
+library(ggrepel)
+library(cowplot)
+
+regulon_cols <- c('#1f77b4', '#ff7f0e', '#2ca02c', '#d62728', '#9467bd', '#8c564b', '#e377c2', '#7f7f7f', '#bcbd22', '#17becf')
+
+# Read the df_clusters DataFrame
+df_clusters <- read.csv("regulon_analysis/figures/cluster_regulons/clustering_results_gb.csv")
+
+# read tSNE coordinates
+df_tsne <- read.csv("regulon_analysis/figures/cluster_regulons/tSNE_coordinates_gb.csv", row.names = 1)
+head(df_tsne)
+df_tsne <- df_tsne[match(df_clusters$Regulon, df_tsne$regulon),]
+df_tsne$regulon <- sapply(strsplit(df_clusters$Regulon, "_"), `[`, 1)
+df_tsne$cluster <- paste0("cluster",df_clusters$Agglomerative)
+```
+
+```{r}
+ggplot(df_tsne, aes(x = tSNE_1, y = tSNE_2, col = as.factor(cluster))) + geom_point() + 
+  scale_color_manual(values = regulon_cols) + geom_text_repel(aes(label= regulon)) + theme_classic() 
+ggsave("fig_factory/figures/6regulon/regulonCluswter_tsne_gb_Agglomerative.pdf", width = 10, height = 8)
+```
+
+
+```{r, fig.width=12, fig.height=12}
+# Get unique values in the 'Agglomerative' column
+unique_agglomerative_values <- unique(df_clusters$Agglomerative)
+
+plist <- list()
+# Iterate over unique values in the 'Agglomerative' column
+for (value in unique_agglomerative_values) {
+  # Filter rows based on the current Agglomerative value
+  filtered_data <- filter(df_clusters, Agglomerative == value)
+
+  # Subset the Regulon column and extract the first part before '_'
+  tf_list <- sapply(strsplit(filtered_data$Regulon, "_"), `[`, 1)
+
+  # Filter the out-degree centrality by the TFs in the tf_list
+  df_centrality_filtered <- df_centrality[df_centrality$Node %in% tf_list,]
+
+  # Plot the out-degree centrality for the TFs in the tf_list
+  plist[[(value+1)]] <- ggplot(df_centrality_filtered, aes(x = reorder(Node, -Centrality), y = Centrality)) + theme_classic()+
+    geom_bar(stat = "identity", fill = regulon_cols[value+1]) +
+    theme(axis.text.x = element_text(angle = 45, hjust = 1)) +
+    labs(x = 'TFs', y = 'Out-Degree Centrality', 
+         title = paste('Out-Degree Centrality for TFs in Agglomerative Cluster', value)) 
+}
+plot_grid( plotlist = plist, ncol  = 3)
+```
+
+```{r, fig.height=12, fig.width=12}
+plist <- list()
+# Iterate over unique values in the 'Agglomerative' column
+for (value in unique_agglomerative_values) {
+  # Filter rows based on the current Agglomerative value
+  filtered_data <- filter(df_clusters, Agglomerative == value)
+
+  # Subset the Regulon column and extract the first part before '_'
+  tf_list <- sapply(strsplit(filtered_data$Regulon, "_"), `[`, 1)
+
+  # Filter the out-degree centrality by the TFs in the tf_list
+  df_centrality_filtered <- df_centrality_tf[df_centrality_tf$Node %in% tf_list,]
+
+  # Plot the out-degree centrality for the TFs in the tf_list
+  plist[[(value+1)]] <- ggplot(df_centrality_filtered, aes(x = reorder(Node, -Centrality), y = Centrality))+ theme_classic() +
+    geom_bar(stat = "identity", fill = regulon_cols[value+1]) +
+    theme(axis.text.x = element_text(angle = 45, hjust = 1)) +
+    labs(x = 'TFs', y = 'Out-Degree Centrality', 
+         title = paste('Out-Degree Centrality for TFs in Agglomerative Cluster', value)) 
+}
+plot_grid( plotlist = plist, ncol  = 3)
+```
+
+
+
+
+# barplot by clusters - region based
+
+```{r}
+regulon_cols <- c('#1f77b4', '#ff7f0e', '#2ca02c', '#d62728', '#9467bd', '#8c564b', '#e377c2', '#7f7f7f', '#bcbd22', '#17becf')
+
+# Read the df_clusters DataFrame
+df_clusters <- read.csv("regulon_analysis/figures/cluster_regulons/clustering_results_rb.csv")
+# read tSNE coordinates
+df_tsne <- read.csv("regulon_analysis/figures/cluster_regulons/tSNE_coordinates_rb.csv", row.names = 1)
+head(df_tsne)
+df_tsne <- df_tsne[match(df_clusters$Regulon, df_tsne$regulon),]
+df_tsne$tf <- sapply(strsplit(df_clusters$Regulon, "_"), `[`, 1)
+df_tsne$regulon <- sapply(strsplit(df_tsne$regulon, "_"), function(x) paste(x[1], x[2], sep = ""))
+df_tsne$cluster <- paste0("cluster",df_clusters$Agglomerative)
+head(df_tsne)
+```
+
+```{r}
+ggplot(df_tsne, aes(x = tSNE_1, y = tSNE_2, col = as.factor(cluster))) + geom_point() + 
+  scale_color_manual(values = regulon_cols) + geom_text_repel(aes(label= regulon)) + theme_classic() 
+ggsave("fig_factory/figures/6regulon/regulonCluswter_tsne_rb_Agglomerative.pdf", width = 10, height = 8)
+```
+
+
+```{r, fig.width=12, fig.height=12}
+# Get unique values in the 'Agglomerative' column
+unique_agglomerative_values <- unique(df_clusters$Agglomerative)
+
+plist <- list()
+# Iterate over unique values in the 'Agglomerative' column
+for (value in unique_agglomerative_values) {
+  # Filter rows based on the current Agglomerative value
+  filtered_data <- filter(df_clusters, Agglomerative == value)
+
+  # Subset the Regulon column and extract the first part before '_'
+  tf_list <- sapply(strsplit(filtered_data$Regulon, "_"), `[`, 1)
+
+  # Filter the out-degree centrality by the TFs in the tf_list
+  df_centrality_filtered <- df_centrality[df_centrality$Node %in% tf_list,]
+
+  # Plot the out-degree centrality for the TFs in the tf_list
+  plist[[(value+1)]] <- ggplot(df_centrality_filtered, aes(x = reorder(Node, -Centrality), y = Centrality)) + theme_classic()+
+    geom_bar(stat = "identity", fill = regulon_cols[value+1]) +
+    theme(axis.text.x = element_text(angle = 45, hjust = 1)) +
+    labs(x = 'TFs', y = 'Out-Degree Centrality', 
+         title = paste('Out-Degree Centrality for TFs in Agglomerative Cluster', value)) 
+}
+plot_grid( plotlist = plist, ncol  = 3)
+ggsave("fig_factory/figures/6regulon/regulonCluswter_centralityBarplot_rb_byAgglomerative.pdf", width = 12, height = 12)
+```
+
+```{r, fig.height=12, fig.width=12}
+plist <- list()
+# Iterate over unique values in the 'Agglomerative' column
+for (value in unique_agglomerative_values) {
+  # Filter rows based on the current Agglomerative value
+  filtered_data <- filter(df_clusters, Agglomerative == value)
+
+  # Subset the Regulon column and extract the first part before '_'
+  tf_list <- sapply(strsplit(filtered_data$Regulon, "_"), `[`, 1)
+
+  # Filter the out-degree centrality by the TFs in the tf_list
+  df_centrality_filtered <- df_centrality_tf[df_centrality_tf$Node %in% tf_list,]
+
+  # Plot the out-degree centrality for the TFs in the tf_list
+  plist[[(value+1)]] <- ggplot(df_centrality_filtered, aes(x = reorder(Node, -Centrality), y = Centrality))+ theme_classic() +
+    geom_bar(stat = "identity", fill = regulon_cols[value+1]) +
+    theme(axis.text.x = element_text(angle = 45, hjust = 1)) +
+    labs(x = 'TFs', y = 'Out-Degree Centrality', 
+         title = paste('Out-Degree Centrality for TFs in Agglomerative Cluster', value)) 
+}
+plot_grid( plotlist = plist, ncol  = 3)
+ggsave("fig_factory/figures/6regulon/regulonCluswter_centralityBarplotTFonly_rb_byAgglomerative.pdf", width = 12, height = 12)
+```
+
+# export target genes
+
+```{r}
+df_grn <- read.csv("GRN_scenicplus/ncall_2023oct_ccb/output/scenicplus/cytoscape/eRegulon_metadata_filtered.csv")
+for (value in unique_agglomerative_values) {
+  # Filter rows based on the current Agglomerative value
+  filtered_data <- filter(df_clusters, Agglomerative == value)
+  grn_tmp <- df_grn$Gene[df_grn$Region_signature_name %in% filtered_data$Regulon]
+  grn_tmp <- unique(grn_tmp)
+  write.table(grn_tmp , paste0("fig_factory/output/6regulon/cluster_", value,"_targetgenes.txt"), quote = F, sep = "\n", row.names = F,col.names = F)
+}
+
+
+```
+
+
+
