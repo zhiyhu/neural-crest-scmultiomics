@@ -1,4 +1,4 @@
-# A Complete Gene Regulatory Network of the Cranial Neural Crest in Zebrafish: single-cell multi-omic and spatial transcriptomic analysis
+# Single-cell multi-omics, spatial transcriptomics and systematic perturbation decode circuitry of neural crest fate decisions
 
 This repository contains the code for the following analysis, catelogued by the sub-projects:
 * [Multiome (RNA+ATAC)](https://github.com/zhiyhu/neural-crest-scmultiomics?tab=readme-ov-file#10x-multiome-data-analysis)
@@ -9,7 +9,10 @@ This repository contains the code for the following analysis, catelogued by the 
 
 ## Citation
 
-Zhiyuan Hu, Sarah Mayes, Weixu Wang, José Mariá Santos Perreira, Fabian Theis, Tatjana Sauka-Spengler. A Complete Gene Regulatory Network of the Cranial Neural Crest in Zebrafish (2024).
+Zhiyuan Hu*, Sarah Mayes, Weixu Wang, José Mariá Santos Perreira, Fabian Theis, Tatjana Sauka-Spengler*. **Single-cell multi-omics, spatial transcriptomics and systematic perturbation decode circuitry of neural crest fate decisions**. *bioRxiv* (2024). doi: [https://doi.org/10.1101/2024.09.17.613303](https://doi.org/10.1101/2024.09.17.613303)
+
+![Sample Image](https://github.com/zhiyhu/neural-crest-scmultiomics/blob/main/thumb.png)
+
 
 ## 10x Multiome data analysis
 
