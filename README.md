@@ -11,8 +11,12 @@ This repository contains the code for the following analysis, catelogued by the 
 
 Zhiyuan Hu*, Sarah Mayes, Weixu Wang, José Mariá Santos Perreira, Fabian Theis, Tatjana Sauka-Spengler*. **Single-cell multi-omics, spatial transcriptomics and systematic perturbation decode circuitry of neural crest fate decisions**. *bioRxiv* (2024). doi: [https://doi.org/10.1101/2024.09.17.613303](https://doi.org/10.1101/2024.09.17.613303)
 
-![Sample Image](https://github.com/zhiyhu/neural-crest-scmultiomics/blob/main/thumb.png)
+<img src="https://github.com/zhiyhu/neural-crest-scmultiomics/blob/main/thumb.png" alt="drawing" style="width:600px;"/>
 
+## Resources
+
+* [Neural Crest Cell Browser](https://research.stowers.org/compbio/ucsc_cellbrowser/public_html/): interactively view the 10x multiome (RNA and ATAC) data, Smart-seq3 data, and MERSCOPE data.
+* [Interactive Neural Crest GRN](https://research.stowers.org/compbio/NC-GRN_shiny/docs/index.html): interactively inquire the downstream genes and regions of individual regulons or interactions between two regulons.
 
 ## 10x Multiome data analysis
 
