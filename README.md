@@ -15,8 +15,8 @@ Zhiyuan Hu*, Sarah Mayes, Weixu Wang, José Mariá Santos Perreira, Fabian Theis
 
 ## Resources
 
-* [Neural Crest Cell Browser](https://research.stowers.org/compbio/ucsc_cellbrowser/public_html/): interactively view the 10x multiome (RNA and ATAC) data, Smart-seq3 data, and MERSCOPE data.
-* [Interactive Neural Crest GRN](https://research.stowers.org/compbio/NC-GRN_shiny/docs/index.html): interactively inquire the downstream genes and regions of individual regulons or interactions between two regulons.
+* [Neural Crest Cell Browser](https://zhiyhu.github.io/neural_crest_cellbrowser): interactively view the 10x multiome (RNA and ATAC) data, Smart-seq3 data, and MERSCOPE data.
+* [Interactive Neural Crest GRN](https://zhiyhu.github.io/NC-GRN_shiny/): interactively inquire the downstream genes and regions of individual regulons or interactions between two regulons.
 
 ## 10x Multiome data analysis
 
@@ -131,14 +131,7 @@ Directory: `multiome/7GRN/GRN_dynamics_SyncReg`
 * TOMTOM analysis to compare new motifs and existing ones: `14tomtom.sh`
 * Footprinting analysis of new motifs: `15footprint_new_motifs.sh`
 
-### 9 AlphaPullDown analysis
-
-* Create individual features: `create_individual_features_SLURM20240202.sh`
-* Run multimer via [AlphaPullDown](https://github.com/KosinskiLab/AlphaPulldown): `run_multimer_jobs_SLURM20240202.sh`
-* Create notebook: `create_notebook20240202.sh`
-* Visualise results: `viz_alphapulldown_rls.Rmd`
-
-### 10 Figure factory
+### 9 Figure factory
 
 
 ## Smart-seq3 data analysis
